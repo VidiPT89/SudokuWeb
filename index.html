@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SudokuWeb — Puzzle de Lógica</title>
+<meta name="description" content="Sudoku moderno e animado — puzzles com solução única, notas, dicas e um leaderboard local, bilingue PT/EN.">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%230a0a0f%22/><rect x=%2222%22 y=%2222%22 width=%2256%22 height=%2256%22 rx=%228%22 fill=%22none%22 stroke=%22%23f59e0b%22 stroke-width=%226%22/><path d=%22M22 41h56M22 59h56M41 22v56M59 22v56%22 stroke=%22%23f59e0b%22 stroke-width=%223%22/></svg>">
+<link rel="stylesheet" href="css/style.css?v=1">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SPLASH ============ -->
+  <section id="splash-screen" class="screen splash-screen">
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="splash-grid" aria-hidden="true">
+      <div class="splash-grid-frame"></div>
+    </div>
+
+    <div class="splash-content">
+      <h1 class="brand-logo">
+        <span class="brand-sudoku">Sudoku</span><span class="brand-web">Web</span>
+      </h1>
+      <p class="splash-tagline" data-i18n="menuSubtitle"></p>
+
+      <div class="splash-credit">
+        <p class="credit-line" data-i18n="developedBy"></p>
+        <p class="credit-name">David Arsénio Martins</p>
+        <div class="credit-links">
+          <a href="https://ividi.dev/" target="_blank" rel="noopener noreferrer">ividi.dev</a>
+          <span class="dot">·</span>
+          <a href="https://github.com/VidiPT89/" target="_blank" rel="noopener noreferrer">github.com/VidiPT89</a>
+        </div>
+      </div>
+    </div>
+
+    <button id="splash-skip" class="splash-skip" data-i18n="tapToContinue"></button>
+  </section>
+
+  <!-- ============ MENU ============ -->
+  <section id="menu-screen" class="screen menu-screen hidden">
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <button id="lang-toggle" class="lang-toggle" aria-label="Language / Idioma">
+      <span class="lang-opt" data-lang-opt="pt">PT</span><span class="lang-opt" data-lang-opt="en">EN</span>
+      <span class="lang-pill" aria-hidden="true"></span>
+    </button>
+
+    <div class="menu-content">
+      <p class="eyebrow" data-i18n="menuTag"></p>
+      <h1 class="brand-logo brand-logo--menu">
+        <span class="brand-sudoku">Sudoku</span><span class="brand-web">Web</span>
+      </h1>
+      <p class="menu-subtitle" data-i18n="menuSubtitle"></p>
+
+      <div class="difficulty-picker">
+        <p class="difficulty-label" data-i18n="difficultyLabel"></p>
+        <div class="difficulty-options">
+          <button class="difficulty-option" data-difficulty="easy" data-i18n="easy"></button>
+          <button class="difficulty-option" data-difficulty="medium" data-i18n="medium"></button>
+          <button class="difficulty-option" data-difficulty="hard" data-i18n="hard"></button>
+        </div>
+      </div>
+
+      <div class="menu-buttons">
+        <button id="btn-continue" class="btn btn-secondary hidden" data-i18n="continueGame"></button>
+        <button id="btn-play" class="btn btn-primary" data-i18n="play"></button>
+        <button id="btn-how-to-play" class="btn btn-ghost" data-i18n="howToPlay"></button>
+      </div>
+    </div>
+
+    <footer class="app-footer">
+      <span data-i18n="developedBy"></span>&nbsp;<strong>David Arsénio Martins</strong>
+      <span class="dot">·</span>
+      <a href="https://ividi.dev/" target="_blank" rel="noopener noreferrer">ividi.dev</a>
+      <span class="dot">·</span>
+      <a href="https://github.com/VidiPT89/" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </footer>
+  </section>
+
+  <!-- ============ HOW TO PLAY ============ -->
+  <section id="htp-screen" class="screen htp-screen hidden">
+    <header class="sub-header">
+      <button id="btn-htp-back" class="icon-btn" aria-label="back">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 data-i18n="htpTitle"></h2>
+      <span class="sub-header-spacer"></span>
+    </header>
+
+    <div class="htp-body">
+      <p class="htp-intro" data-i18n="htpIntro"></p>
+
+      <section class="htp-section">
+        <h3 data-i18n="htpRuleTitle"></h3>
+        <p data-i18n="htpRuleBody"></p>
+        <div class="htp-diagram">
+          <div class="mini-grid" aria-hidden="true">
+            <div class="mini-grid-frame"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="htp-section">
+        <h3 data-i18n="htpGivenTitle"></h3>
+        <p data-i18n="htpGivenBody"></p>
+      </section>
+
+      <section class="htp-section">
+        <h3 data-i18n="htpConflictTitle"></h3>
+        <p data-i18n="htpConflictBody"></p>
+      </section>
+
+      <section class="htp-section">
+        <h3 data-i18n="htpNotesTitle"></h3>
+        <p data-i18n="htpNotesBody"></p>
+      </section>
+
+      <section class="htp-section">
+        <h3 data-i18n="htpToolsTitle"></h3>
+        <ul class="htp-tools">
+          <li><strong data-i18n="hint"></strong> — <span data-i18n="htpHintTool"></span></li>
+          <li><strong data-i18n="undo"></strong> — <span data-i18n="htpUndoTool"></span></li>
+        </ul>
+      </section>
+
+      <button id="btn-htp-close" class="btn btn-primary htp-close" data-i18n="htpCloseButton"></button>
+    </div>
+  </section>
+
+  <!-- ============ GAME ============ -->
+  <section id="game-screen" class="screen game-screen hidden">
+    <header class="game-header">
+      <button id="btn-back-menu" class="icon-btn" aria-label="menu">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+
+      <div class="game-stats">
+        <div class="stat"><span class="stat-label" data-i18n="time"></span><span class="stat-value" id="stat-time">00:00</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="moves"></span><span class="stat-value" id="stat-moves">0</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="hintsLeft"></span><span class="stat-value" id="stat-hints">3</span></div>
+      </div>
+
+      <div class="game-actions">
+        <button id="btn-restart" class="icon-btn" data-tip-i18n="restart">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v6h6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="board-wrap">
+      <div id="board" class="sudoku-board"></div>
+    </div>
+
+    <div class="control-panel">
+      <div class="action-row">
+        <button id="btn-notes" class="action-btn" data-i18n-label="notes">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span data-i18n="notes"></span>
+        </button>
+        <button id="btn-undo" class="action-btn" data-i18n-label="undo">
+          <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-1"/></svg>
+          <span data-i18n="undo"></span>
+        </button>
+        <button id="btn-hint" class="action-btn" data-i18n-label="hint">
+          <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-4 10.472V16h8v-2.528A6 6 0 0012 3z"/></svg>
+          <span data-i18n="hint"></span>
+          <span id="hint-count" class="badge"></span>
+        </button>
+        <button id="btn-erase" class="action-btn" data-i18n-label="erase">
+          <svg viewBox="0 0 24 24"><path d="M20 20H8l-6-6 10-10 8 8-6 6M8 20l6-6"/></svg>
+          <span data-i18n="erase"></span>
+        </button>
+      </div>
+
+      <div id="number-pad" class="number-pad"></div>
+    </div>
+  </section>
+
+  <!-- ============ MODALS ============ -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+
+    <div id="modal-win" class="modal modal-win hidden">
+      <canvas id="confetti-canvas"></canvas>
+      <div class="modal-body">
+        <h2 data-i18n="winTitle"></h2>
+        <p data-i18n="winSubtitle"></p>
+        <div class="modal-stats">
+          <div><span data-i18n="finalTime"></span><strong id="win-time"></strong></div>
+          <div><span data-i18n="finalHints"></span><strong id="win-hints"></strong></div>
+        </div>
+        <div id="win-records" class="win-records hidden">
+          <p id="win-record-time" class="win-record-line hidden" data-i18n="newRecordTime"></p>
+          <p id="win-record-hints" class="win-record-line hidden" data-i18n="newRecordHints"></p>
+        </div>
+        <div class="leaderboard-block">
+          <div class="lb-row"><span data-i18n="bestTime"></span><strong id="lb-best-time">—</strong></div>
+          <div class="lb-row"><span data-i18n="bestHints"></span><strong id="lb-best-hints">—</strong></div>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-win-again" class="btn btn-primary" data-i18n="playAgain"></button>
+          <button id="btn-win-menu" class="btn btn-ghost" data-i18n="backToMenu"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-confirm" class="modal modal-confirm hidden">
+      <div class="modal-body">
+        <h2 data-i18n="confirmRestartTitle"></h2>
+        <p data-i18n="confirmRestartBody"></p>
+        <div class="modal-actions">
+          <button id="btn-confirm-yes" class="btn btn-primary" data-i18n="confirmYes"></button>
+          <button id="btn-confirm-no" class="btn btn-ghost" data-i18n="confirmNo"></button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script src="js/i18n.js?v=1"></script>
+<script src="js/solver.js?v=1"></script>
+<script src="js/generator.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/ui.js?v=1"></script>
+</body>
+</html>
