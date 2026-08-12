@@ -2,7 +2,7 @@
 
 const I18N = {
   pt: {
-    metaTitle: 'SudokuWeb — Puzzle de Lógica',
+    metaTitle: 'SudokuWeb: Puzzle de Lógica',
     tapToContinue: 'Toque para continuar',
     developedBy: 'Desenvolvido por',
 
@@ -65,7 +65,7 @@ const I18N = {
   },
 
   en: {
-    metaTitle: 'SudokuWeb — Logic Puzzle',
+    metaTitle: 'SudokuWeb: Logic Puzzle',
     tapToContinue: 'Tap to continue',
     developedBy: 'Developed by',
 
