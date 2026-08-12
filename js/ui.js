@@ -20,6 +20,7 @@ function setStoredDifficulty(difficulty) {
   try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (e) { /* ignore */ }
 }
 let selectedDifficulty = getStoredDifficulty();
+let lastMovesShown = null;
 
 function applyDifficultyUI() {
   document.querySelectorAll('.difficulty-option').forEach((btn) => {
@@ -120,6 +121,9 @@ function renderBoard() {
     const col = idx % 9;
     const div = document.createElement('div');
     div.className = 'cell';
+    div.style.setProperty('--i', String(row + col));
+    div.classList.add('enter');
+    div.addEventListener('animationend', () => div.classList.remove('enter'), { once: true });
     if (col === 2 || col === 5) div.classList.add('thick-right');
     if (row === 2 || row === 5) div.classList.add('thick-bottom');
     div.addEventListener('click', () => handleResult(game.selectCell(idx)));
@@ -354,7 +358,16 @@ function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerI
 
 function updateStats() {
   el('stat-time').textContent = formatTime(game.elapsedSeconds);
-  el('stat-moves').textContent = game.moves;
+  const moves = game.moves;
+  if (moves !== lastMovesShown) {
+    const node = el('stat-moves');
+    node.classList.remove('pop');
+    void node.offsetWidth;
+    node.classList.add('pop');
+    node.addEventListener('animationend', () => node.classList.remove('pop'), { once: true });
+    lastMovesShown = moves;
+  }
+  el('stat-moves').textContent = moves;
   el('stat-hints').textContent = game.hintsRemaining;
 }
 
@@ -405,8 +418,8 @@ function onWin() {
 
   el('win-time').textContent = formatTime(elapsedSeconds);
   el('win-hints').textContent = hintsUsed;
-  el('lb-best-time').textContent = lb.bestTime !== null ? formatTime(lb.bestTime) : '—';
-  el('lb-best-hints').textContent = lb.bestHints !== null ? lb.bestHints : '—';
+  el('lb-best-time').textContent = lb.bestTime !== null ? formatTime(lb.bestTime) : '–';
+  el('lb-best-hints').textContent = lb.bestHints !== null ? lb.bestHints : '–';
   el('win-record-time').classList.toggle('hidden', !outcome.isNewBestTime);
   el('win-record-hints').classList.toggle('hidden', !outcome.isNewBestHints);
   el('win-records').classList.toggle('hidden', !outcome.isNewBestTime && !outcome.isNewBestHints);
@@ -439,7 +452,7 @@ function launchConfetti() {
   canvas.width = modal.clientWidth;
   canvas.height = modal.clientHeight;
   const ctx = canvas.getContext('2d');
-  const colors = ['#f59e0b', '#fbbf24', '#e2e8f0', '#3b82f6', '#22c55e'];
+  const colors = ['#f99c00', '#fcbb00', '#ffd236', '#dd7400', '#e2e8f0'];
   const particles = Array.from({ length: 70 }, () => ({
     x: Math.random() * canvas.width,
     y: -20 - Math.random() * canvas.height * 0.5,
