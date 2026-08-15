@@ -13,6 +13,8 @@ class SudokuGame {
     this.notesMode = opts.notesMode ?? false;
     this.moves = opts.moves ?? 0;
     this.hintsUsed = opts.hintsUsed ?? 0;
+    this.wrongMoves = opts.wrongMoves ?? 0;
+    this.challengeLevel = opts.challengeLevel ?? null; // null = classic mode
     this.startedAt = Date.now() - (opts.elapsedSeconds ?? 0) * 1000;
     this.undoStack = [];
   }
@@ -29,6 +31,21 @@ class SudokuGame {
     });
   }
 
+  static newChallenge(level) {
+    const generated = generatePuzzleForLevel(level);
+    const givenMask = generated.given.map((v) => v !== 0);
+    return new SudokuGame({
+      difficulty: bandForLevel(level),
+      challengeLevel: level,
+      givenMask,
+      solution: generated.solution,
+      values: generated.given,
+      notes: Array.from({ length: 81 }, () => []),
+    });
+  }
+
+  get isChallenge() { return this.challengeLevel !== null; }
+
   static fromSnapshot(snap) {
     const givenMask = snap.given.map((v) => v !== 0);
     const game = new SudokuGame({
@@ -41,12 +58,17 @@ class SudokuGame {
       notesMode: snap.notesMode,
       moves: snap.moves,
       hintsUsed: snap.hintsUsed,
+      wrongMoves: snap.wrongMoves,
+      challengeLevel: snap.challengeLevel ?? null,
       elapsedSeconds: snap.elapsedSeconds,
     });
     return game;
   }
 
-  get maxHints() { return DIFFICULTIES[this.difficulty].maxHints; }
+  get maxHints() {
+    if (this.isChallenge) return maxHintsForLevel(this.challengeLevel);
+    return DIFFICULTIES[this.difficulty].maxHints;
+  }
   get hintsRemaining() { return this.maxHints - this.hintsUsed; }
   get canUndo() { return this.undoStack.length > 0; }
   get elapsedSeconds() { return Math.floor((Date.now() - this.startedAt) / 1000); }
@@ -99,6 +121,7 @@ class SudokuGame {
     this.values[index] = digit;
     this.notes[index].clear();
     this.moves++;
+    if (digit !== this.solution[index]) this.wrongMoves++;
     return this.isWon ? { type: 'won' } : { type: 'digitEntered', index, digit };
   }
 
@@ -174,6 +197,8 @@ class SudokuGame {
       notesMode: this.notesMode,
       moves: this.moves,
       hintsUsed: this.hintsUsed,
+      wrongMoves: this.wrongMoves,
+      challengeLevel: this.challengeLevel,
       elapsedSeconds: this.elapsedSeconds,
     };
   }
