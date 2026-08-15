@@ -88,6 +88,12 @@ function goToMenu() {
   el('btn-continue').classList.toggle('hidden', !hasSavedGame());
 }
 
+function goToLevels() {
+  stopTimer();
+  showScreen('levels-screen');
+  renderLevels(startChallenge);
+}
+
 /* ---------------------------------------------------------------------
    Splash sequence
    --------------------------------------------------------------------- */
@@ -219,6 +225,19 @@ function refreshNumberPad(cells) {
 
 function startNewGame(difficultyKey) {
   game = SudokuGame.newGame(difficultyKey);
+  clearSavedGame();
+  showScreen('game-screen');
+  renderBoard();
+  refreshBoard();
+  updateStats();
+  refreshHintBadge();
+  el('btn-notes').classList.remove('active');
+  startTimer();
+  saveGame();
+}
+
+function startChallenge(level) {
+  game = SudokuGame.newChallenge(level);
   clearSavedGame();
   showScreen('game-screen');
   renderBoard();
@@ -407,25 +426,82 @@ function recordCompletion(difficulty, elapsedSeconds, hintsUsed) {
   return { isNewBestTime, isNewBestHints };
 }
 
-function onWin() {
-  stopTimer();
-  clearSavedGame();
+let lastChallengeLevel = null;
 
+function animateWinStars(count) {
+  const wrap = el('win-stars');
+  wrap.classList.remove('hidden');
+  wrap.querySelectorAll('.win-star').forEach((star, i) => {
+    const earned = i < count;
+    star.classList.remove('earned', 'pop');
+    star.classList.toggle('earned', earned);
+    if (earned) {
+      setTimeout(() => star.classList.add('pop'), 220 + i * 260);
+    }
+  });
+}
+
+function onWinChallenge() {
+  const level = game.challengeLevel;
+  lastChallengeLevel = level;
+  const elapsedSeconds = game.elapsedSeconds;
+  const stars = starsFor(game.wrongMoves, game.hintsUsed);
+  const outcome = recordChallengeWin(level, elapsedSeconds, stars);
+  const dict = I18N[currentLang];
+
+  el('win-title').textContent = `${dict.level} ${level} ${dict.levelCompleteSuffix}`;
+  el('win-subtitle').textContent = dict.winSubtitle;
+  el('win-time').textContent = formatTime(elapsedSeconds);
+  el('win-hints').textContent = game.hintsUsed;
+
+  el('win-leaderboard').classList.add('hidden');
+  el('win-record-time').classList.toggle('hidden', !outcome.isNewBestTime);
+  el('win-record-hints').classList.add('hidden');
+  el('win-unlocked').classList.toggle('hidden', !outcome.unlockedNext);
+  el('win-records').classList.toggle('hidden', !outcome.isNewBestTime && !outcome.unlockedNext);
+
+  el('btn-win-next').classList.remove('hidden');
+  el('btn-win-levels').classList.remove('hidden');
+  el('btn-win-again').classList.add('hidden');
+  el('btn-win-menu').classList.add('hidden');
+
+  openModal('modal-win');
+  animateWinStars(outcome.bestStars);
+  launchConfetti();
+}
+
+function onWinClassic() {
   const elapsedSeconds = game.elapsedSeconds;
   const hintsUsed = game.hintsUsed;
   const outcome = recordCompletion(game.difficulty, elapsedSeconds, hintsUsed);
   const lb = getLeaderboardEntry(game.difficulty);
 
+  el('win-title').textContent = I18N[currentLang].winTitle;
+  el('win-subtitle').textContent = I18N[currentLang].winSubtitle;
+  el('win-stars').classList.add('hidden');
   el('win-time').textContent = formatTime(elapsedSeconds);
   el('win-hints').textContent = hintsUsed;
+  el('win-leaderboard').classList.remove('hidden');
   el('lb-best-time').textContent = lb.bestTime !== null ? formatTime(lb.bestTime) : '–';
   el('lb-best-hints').textContent = lb.bestHints !== null ? lb.bestHints : '–';
   el('win-record-time').classList.toggle('hidden', !outcome.isNewBestTime);
   el('win-record-hints').classList.toggle('hidden', !outcome.isNewBestHints);
+  el('win-unlocked').classList.add('hidden');
   el('win-records').classList.toggle('hidden', !outcome.isNewBestTime && !outcome.isNewBestHints);
+
+  el('btn-win-next').classList.add('hidden');
+  el('btn-win-levels').classList.add('hidden');
+  el('btn-win-again').classList.remove('hidden');
+  el('btn-win-menu').classList.remove('hidden');
 
   openModal('modal-win');
   launchConfetti();
+}
+
+function onWin() {
+  stopTimer();
+  clearSavedGame();
+  if (game.isChallenge) onWinChallenge(); else onWinClassic();
 }
 
 /* ---------------------------------------------------------------------
@@ -540,6 +616,9 @@ function init() {
 
   el('btn-play').addEventListener('click', () => startNewGame(selectedDifficulty));
   el('btn-continue').addEventListener('click', resumeGame);
+  el('btn-challenges').addEventListener('click', goToLevels);
+  el('btn-levels-back').addEventListener('click', goToMenu);
+  el('btn-levels-earlier').addEventListener('click', () => showEarlierLevels(startChallenge));
   el('btn-how-to-play').addEventListener('click', () => showScreen('htp-screen'));
   el('btn-htp-back').addEventListener('click', goToMenu);
   el('btn-htp-close').addEventListener('click', goToMenu);
@@ -551,11 +630,18 @@ function init() {
   el('btn-erase').addEventListener('click', handleErase);
   el('btn-restart').addEventListener('click', requestRestart);
 
-  el('btn-confirm-yes').addEventListener('click', () => { const d = game.difficulty; closeAllModals(); startNewGame(d); });
+  el('btn-confirm-yes').addEventListener('click', () => {
+    const level = game.challengeLevel;
+    const d = game.difficulty;
+    closeAllModals();
+    if (level !== null) startChallenge(level); else startNewGame(d);
+  });
   el('btn-confirm-no').addEventListener('click', closeAllModals);
 
   el('btn-win-again').addEventListener('click', () => { closeAllModals(); startNewGame(selectedDifficulty); });
   el('btn-win-menu').addEventListener('click', () => { closeAllModals(); goToMenu(); });
+  el('btn-win-next').addEventListener('click', () => { closeAllModals(); startChallenge((lastChallengeLevel ?? 0) + 1); });
+  el('btn-win-levels').addEventListener('click', () => { closeAllModals(); goToLevels(); });
 
   document.addEventListener('keydown', handleKeydown);
 }

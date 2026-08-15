@@ -33,9 +33,9 @@ function fillGrid(grid, index) {
   return false;
 }
 
-/* Returns { given: Array(81), solution: Array(81) } for the requested difficulty key. */
-function generatePuzzle(difficultyKey) {
-  const difficulty = DIFFICULTIES[difficultyKey];
+/* Digs a full solution down to (at most) targetClues cells while preserving a unique solution.
+   Returns { given: Array(81), solution: Array(81) }. */
+function digPuzzle(targetClues) {
   const solution = new Array(81).fill(0);
   fillGrid(solution, 0);
 
@@ -44,7 +44,7 @@ function generatePuzzle(difficultyKey) {
   let clues = 81;
 
   for (const idx of order) {
-    if (clues <= difficulty.minClues) break;
+    if (clues <= targetClues) break;
     const backup = puzzle[idx];
     if (backup === 0) continue;
     puzzle[idx] = 0;
@@ -59,4 +59,14 @@ function generatePuzzle(difficultyKey) {
   }
 
   return { given: puzzle, solution };
+}
+
+/* Returns a puzzle for the requested difficulty key ('easy' | 'medium' | 'hard'). */
+function generatePuzzle(difficultyKey) {
+  return digPuzzle(DIFFICULTIES[difficultyKey].minClues);
+}
+
+/* Returns a puzzle for the challenge ladder — clue count comes straight from the level ramp. */
+function generatePuzzleForLevel(level) {
+  return digPuzzle(cluesForLevel(level));
 }
