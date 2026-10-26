@@ -40,7 +40,6 @@ const I18N = {
     newGame: 'Novo Jogo',
     hint: 'Dica',
     undo: 'Anular',
-    restart: 'Reiniciar',
     time: 'Tempo',
     moves: 'Jogadas',
     hintsLeft: 'Dicas',
@@ -58,8 +57,8 @@ const I18N = {
     newRecordTime: 'Novo recorde!',
     newRecordHints: 'Novo recorde!',
 
-    confirmRestartTitle: 'Reiniciar Puzzle?',
-    confirmRestartBody: 'Vais perder o progresso atual neste puzzle.',
+    confirmRestartTitle: 'Começar Novo Jogo?',
+    confirmRestartBody: 'Vais perder o progresso atual. O novo puzzle mantém a dificuldade.',
     confirmYes: 'Confirmar',
     confirmNo: 'Cancelar',
 
@@ -77,9 +76,6 @@ const I18N = {
     htpHintTool: 'Revela a resposta de uma casa. Há 3, 4 ou 5 dicas por partida. Uma dica usada continua a contar mesmo que desfaças a jogada.',
     htpUndoTool: 'Recupera o valor e as notas anteriores. Os últimos 200 movimentos ficam guardados ao sair e retomar. Erros e dicas usados continuam a contar.',
     htpCloseButton: 'Entendido',
-
-    langToggleLabel: 'Idioma',
-    footerRights: 'Todos os direitos reservados.',
   },
 
   en: {
@@ -121,7 +117,6 @@ const I18N = {
     newGame: 'New Game',
     hint: 'Hint',
     undo: 'Undo',
-    restart: 'Restart',
     time: 'Time',
     moves: 'Moves',
     hintsLeft: 'Hints',
@@ -139,8 +134,8 @@ const I18N = {
     newRecordTime: 'New record!',
     newRecordHints: 'New record!',
 
-    confirmRestartTitle: 'Restart Puzzle?',
-    confirmRestartBody: "You'll lose your current progress on this puzzle.",
+    confirmRestartTitle: 'Start a New Game?',
+    confirmRestartBody: "You'll lose your current progress. The new puzzle keeps the same difficulty.",
     confirmYes: 'Confirm',
     confirmNo: 'Cancel',
 
@@ -158,9 +153,6 @@ const I18N = {
     htpHintTool: 'Reveals a cell’s answer. Each game has 3, 4 or 5 hints. A used hint still counts even if you undo the move.',
     htpUndoTool: 'Restores the previous value and notes. The last 200 moves are saved when you leave and resume. Mistakes and used hints still count.',
     htpCloseButton: 'Got It',
-
-    langToggleLabel: 'Language',
-    footerRights: 'All rights reserved.',
   },
 };
 

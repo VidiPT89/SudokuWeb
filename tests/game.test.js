@@ -33,6 +33,11 @@ check('countSolutions([1, 2])', 0);
 check('countSolutions(game.solution, 0)', 0);
 check('countSolutions(game.solution)', 1);
 check('countSolutions(Array(81).fill(0))', 2);
+check('countSolutions(Array(81).fill(0), 5)', 5);
+// A well-known minimal puzzle with a single solution; the solver must not mutate its input.
+run('const inkala = [..."800000000003600000070090200050007000000045700000100030001000068008500010090000400"].map(Number)');
+check('countSolutions(inkala)', 1);
+check('inkala.join("")', '800000000003600000070090200050007000000045700000100030001000068008500010090000400');
 check('SudokuGame.isValidSnapshot(original)');
 for (const expression of [
   'null', '{...original, values: []}', '{...original, solution: Array(81).fill(1)}',
@@ -76,12 +81,14 @@ for (const difficulty of ['easy', 'medium', 'hard']) {
     check('countSolutions(game.values)', 1);
     check('game.values.every((v, i) => v === constCopy[i])');
     check('game.values.every((v, i) => v === 0 || v === game.solution[i])');
+    check(`(n => n >= DIFFICULTIES['${difficulty}'].minClues && n <= DIFFICULTIES['${difficulty}'].minClues + 2)(game.values.filter(Boolean).length)`);
   }
 }
 run('game = SudokuGame.newChallenge(100);');
 check('game.difficulty', 'expert');
 check('SudokuGame.isValidSnapshot(game.toSnapshot())');
 check('countSolutions(game.values)', 1);
+check('game.values.filter(Boolean).length <= CHALLENGE_MIN_CLUES + 3');
 run('game = SudokuGame.fromSnapshot({...original, values: original.solution.map((v, i) => i === target ? 0 : v)}); game.selectCell(target)');
 check('game.enterDigit(game.solution[target]).type', 'won');
 const wonTime = run('game.elapsedSeconds'); now += 100000;

@@ -150,7 +150,7 @@ function buildLevelTile(level, progress, dict) {
   tile.dataset.level = String(level);
   tile.dataset.band = bandForLevel(level);
   tile.disabled = !unlocked;
-  tile.setAttribute('aria-label', `${dict.level} ${level}${unlocked ? '' : ` — ${dict.locked}`}`);
+  tile.setAttribute('aria-label', `${dict.level} ${level}, ${unlocked ? `${stars}/3 ${dict.starsLabel}` : dict.locked}`);
 
   const num = document.createElement('span');
   num.className = 'tile-number';
