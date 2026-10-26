@@ -35,7 +35,7 @@ function fillGrid(grid, index) {
 
 /* Digs a full solution towards targetClues cells (uniqueness may require more) while preserving a unique solution.
    Returns { given: Array(81), solution: Array(81) }. */
-function digPuzzle(targetClues) {
+function digOnce(targetClues) {
   const solution = new Array(81).fill(0);
   fillGrid(solution, 0);
 
@@ -56,7 +56,21 @@ function digPuzzle(targetClues) {
     }
   }
 
-  return { given: puzzle, solution };
+  return { given: puzzle, solution, clues };
+}
+
+/* A single dig can get stuck above the target on low clue counts, so retry a few times and
+   keep the sparsest puzzle. */
+const DIG_ATTEMPTS = 12;
+
+function digPuzzle(targetClues) {
+  let best = null;
+  for (let attempt = 0; attempt < DIG_ATTEMPTS; attempt++) {
+    const dug = digOnce(targetClues);
+    if (!best || dug.clues < best.clues) best = dug;
+    if (best.clues <= targetClues) break;
+  }
+  return { given: best.given, solution: best.solution };
 }
 
 /* Returns a puzzle for the requested difficulty key ('easy' | 'medium' | 'hard'). */

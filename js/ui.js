@@ -64,7 +64,7 @@ function applyLang() {
     opt.classList.toggle('active', opt.getAttribute('data-lang-opt') === currentLang);
   });
 
-  if (game) { refreshHintBadge(); refreshBoard(); }
+  if (game) { updateStats(); refreshBoard(); }
   if (!el('levels-screen').classList.contains('hidden')) renderLevels(startChallenge);
 }
 
@@ -163,6 +163,7 @@ function refreshBoard() {
   const cells = game.cells();
   const selectedIndex = game.selectedIndex;
   const selectedCell = (selectedIndex !== null && selectedIndex !== undefined) ? cells[selectedIndex] : null;
+  const dict = I18N[currentLang];
 
   cells.forEach((cellData, idx) => {
     const div = cellEls[idx];
@@ -172,7 +173,6 @@ function refreshBoard() {
     div.classList.toggle('conflict', cellData.isConflict);
     div.classList.toggle('selected', idx === selectedIndex);
     div.tabIndex = idx === (selectedIndex ?? 0) ? 0 : -1;
-    const dict = I18N[currentLang];
     div.setAttribute('aria-label', `${dict.row} ${cellData.row + 1}, ${dict.column} ${cellData.col + 1}, ${cellData.value ?? dict.emptyCell}${cellData.isGiven ? ', ' + dict.fixedCell : ''}${cellData.isConflict ? ', ' + dict.conflictCell : ''}${cellData.notes.size ? ', ' + dict.notes + ': ' + [...cellData.notes].sort().join(', ') : ''}`);
     div.setAttribute('aria-pressed', String(idx === selectedIndex));
 
@@ -347,7 +347,13 @@ function handleNotesToggle() {
 function handleKeydown(e) {
   if (!game || el('game-screen').classList.contains('hidden')) return;
   if (!el('modal-overlay').classList.contains('hidden')) return;
-  if (e.ctrlKey || e.metaKey || e.altKey || e.target?.matches('input, textarea, select, [contenteditable]')) return;
+  if (e.target?.matches('input, textarea, select, [contenteditable]')) return;
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    handleUndo();
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.key >= '1' && e.key <= '9') {
     e.preventDefault();
@@ -390,6 +396,9 @@ function startTimer() {
 function stopTimer() { game?.pause(); if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
 
 function updateStats() {
+  const dict = I18N[currentLang];
+  el('stat-mode-label').textContent = game.isChallenge ? dict.level : dict.difficultyLabel;
+  el('stat-mode').textContent = game.isChallenge ? game.challengeLevel : dict[game.difficulty];
   el('stat-mistakes-wrap').classList.toggle('hidden', !game.isChallenge);
   el('stat-mistakes').textContent = game.wrongMoves;
   el('stat-time').textContent = formatTime(game.elapsedSeconds);
@@ -559,6 +568,7 @@ function closeAllModals() {
    --------------------------------------------------------------------- */
 
 function launchConfetti() {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   const canvas = el('confetti-canvas');
   const modal = canvas.closest('.modal');
   canvas.width = modal.clientWidth;
@@ -678,7 +688,7 @@ function init() {
   });
   el('btn-confirm-no').addEventListener('click', closeAllModals);
 
-  el('btn-win-again').addEventListener('click', () => { closeAllModals(); startNewGame(selectedDifficulty); });
+  el('btn-win-again').addEventListener('click', () => { const d = game.difficulty; closeAllModals(); startNewGame(d); });
   el('btn-win-menu').addEventListener('click', () => { closeAllModals(); goToMenu(); });
   el('btn-win-next').addEventListener('click', () => { closeAllModals(); startChallenge((lastChallengeLevel ?? 0) + 1); });
   el('btn-win-levels').addEventListener('click', () => { closeAllModals(); goToLevels(); });
