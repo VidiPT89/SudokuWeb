@@ -52,7 +52,7 @@ run('handleUndo()');
 check('game.values[target]', 0);
 assert.equal(node('btn-undo').disabled, true); checks++;
 run('game.toggleNotesMode(); game.hint(); game.undo()');
-check('game.hintsUsed', 0);
+check('game.hintsUsed', 1);
 check('game.values[target]', 0);
 now += 2500;
 check('game.elapsedSeconds', 2);
@@ -95,4 +95,46 @@ check('loadChallengeProgress().highestUnlocked', 1);
 storage.set('sudokuweb-challenges', '{"highestUnlocked":2,"stars":{"1":99},"bestTime":{"1":-1}}');
 check('totalStarsEarned(loadChallengeProgress())', 0);
 check('Object.keys(loadChallengeProgress().bestTime).length', 0);
+// Notes removal is one transaction, including after saving/restoring.
+run(`const digit = original.solution[0]; const alternate = digit % 9 + 1;
+const blank = {...original, given: Array(81).fill(0), values: Array(81).fill(0), notes: Array.from({length:81}, () => []), undoStack: []};
+blank.notes[1] = [digit, alternate]; blank.notes[9] = [digit]; blank.notes[10] = [digit]; blank.notes[40] = [digit];
+game = SudokuGame.fromSnapshot(blank); game.selectCell(0); game.enterDigit(digit);`);
+check('game.notes[1].has(digit)', false);
+check('game.notes[1].has(alternate)');
+check('game.notes[9].has(digit)', false);
+check('game.notes[10].has(digit)', false);
+check('game.notes[40].has(digit)');
+run('const savedHistory = JSON.parse(JSON.stringify(game.toSnapshot())); game = SudokuGame.fromSnapshot(savedHistory)');
+check('game.canUndo');
+run('game.undo()');
+check('game.values[0]', 0);
+check('[1,9,10,40].every(i => game.notes[i].has(digit))');
+check('game.canUndo', false);
+run('game.selectCell(0); game.hint(); game = SudokuGame.fromSnapshot(JSON.parse(JSON.stringify(game.toSnapshot()))); game.undo()');
+check('game.hintsUsed', 1);
+check('game.notes[1].has(digit)');
+run('for (let i=1; i<game.maxHints; i++) { game.hint(); game.undo(); }');
+check('game.hint().type', 'hintExhausted');
+check('game.hintsUsed === game.maxHints');
+for (const bad of [
+  '[{index:81, prevValue:null, prevNotes:[], peerNotes:[]}]',
+  '[{index:0, prevValue:10, prevNotes:[], peerNotes:[]}]',
+  '[{index:0, prevValue:null, prevNotes:[0], peerNotes:[]}]',
+  '[{index:0, prevValue:null, prevNotes:[], peerNotes:[{index:40, notes:[1]}]}]',
+  'Array(201).fill({index:0, prevValue:null, prevNotes:[], peerNotes:[]})',
+]) check(`SudokuGame.isValidSnapshot({...blank, undoStack:${bad}})`, false);
+run('game = SudokuGame.fromSnapshot({...blank, undoStack:undefined})');
+check('game.canUndo', false);
+run('game.selectCell(0); game.toggleNotesMode(); for(let i=0;i<205;i++) game.enterDigit(1);');
+check('game.toSnapshot().undoStack.length', 200);
+run('game = SudokuGame.fromSnapshot(JSON.parse(JSON.stringify(game.toSnapshot()))); for(let i=0;i<200;i++) game.undo()');
+check('game.canUndo', false);
+check('game.notes[0].has(1)'); // retained state after the five evicted moves
+run('game = SudokuGame.fromSnapshot({...blank, values: original.solution.slice()}); game.selectCell(0)');
+check('game.enterDigit(alternate).type', 'ignored');
+check('game.clearCell().type', 'ignored');
+check('game.undo().type', 'ignored');
+check('game.hint().type', 'ignored');
+
 console.log(`game.test.js: ${checks} checks passed`);

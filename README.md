@@ -14,7 +14,7 @@ The interface opens with a short animated intro, and is fully bilingual, switchi
 - ✅ Uniquely-solvable puzzles — clues are removed one at a time, keeping each removal only if the puzzle still solves to exactly one grid
 - ✏️ Pencil-mark notes mode — jot down candidate digits in a cell instead of committing a final value
 - 🚫 Live conflict detection — placing a digit that already exists in the same row, column or 3x3 box highlights every conflicting cell
-- 💡 Limited hints per game (3/4/5 by difficulty) that reveal the correct value for the selected cell — or a random incorrect one if nothing's selected — and ↩️ undo for the last 200 moves in the current session
+- 💡 Limited hints per game (3/4/5 by difficulty) that reveal the correct value for the selected cell — or a random incorrect one if nothing's selected — and ↩️ undo for the last 200 moves including after resuming a saved game
 - 🎬 Smooth animations — pop-in on digit entry and hints, shake on conflicts, a confetti burst on winning
 - ⌨️ Full keyboard support — digits 1-9 to fill, Backspace/Delete to erase, arrow keys to move the selection, N to toggle notes
 - 💾 Autosaves mid-game to `localStorage`, with a "Continue Game" option from the main menu
@@ -93,7 +93,7 @@ The page is entirely static and can also be served with any static file server (
 
 - Given (fixed) cells are set once at generation time and can never be edited or cleared, only the cells you fill in yourself
 - Correcting a wrong entry counts as a valid hint target, not just filling in a blank cell
-- Undo restores both the previous value and the previous notes for a cell, and un-spends a hint if the move it's undoing was one
+- Undo restores the previous value and all affected notes. Used hints are never refunded, and mistakes remain counted
 - Language, in-progress games and the local leaderboard are all stored in `localStorage`, so they persist between visits
 - All game logic (generation, solving, the game engine) is pure, DOM-free code kept separate from rendering in `ui.js`
 - This is an independent JavaScript codebase, part of a pair of from-scratch Sudoku implementations for iOS/macOS and the web — no code is shared between the native and web apps
@@ -107,7 +107,13 @@ Developed by **David Arsénio Martins** — *"Vidi"*
 - Challenge mode progressively reduces the target to 23 clues and awards 1–3 stars based on mistakes and hints. A generator may retain more clues to preserve a unique solution; clue count alone is not a human difficulty rating.
 - Time pauses outside active play, during restart confirmation and after victory.
 - Invalid saved games are rejected safely; completed games are not offered as resumable games.
-- Undo history is held in memory for up to 200 moves and is not restored after resuming a saved game.
+- Undo history is saved for up to 200 moves and restored with the game. Older saves without history remain compatible.
 - The Android implementation was retired at the owner's request.
 
 Run all regression checks: `node tests/challenge.test.js && node tests/game.test.js`. No dependencies or build step are needed.
+
+### Gameplay review (2026-10-26, second pass)
+
+Placing a digit automatically removes that candidate from peer notes. Undo restores all affected notes, including after a save/reload. Completed boards cannot be edited after a result is recorded.
+
+Challenge mistakes are visible during play. Stars use mistakes plus hints: 0 = 3 stars, 1–3 = 2 stars, 4+ = 1 star. Undo does not erase mistakes or refund hints. The guide explains this in Portuguese and English.

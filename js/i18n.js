@@ -2,6 +2,9 @@
 
 const I18N = {
   pt: {
+    mistakes: 'Erros',
+    htpChallengeBody: 'Cada número diferente da solução conta como um erro, mesmo sem conflito visível. Soma erros e dicas: 0 dá 3 estrelas, 1 a 3 dá 2 estrelas, 4 ou mais dá 1 estrela. O tempo não afeta as estrelas. Fica guardado o teu melhor resultado de cada nível.',
+    htpChallengeTitle: 'Desafios e estrelas',
     metaTitle: 'SudokuWeb: Puzzle de Lógica',
     row: 'Linha', column: 'Coluna', emptyCell: 'vazia', fixedCell: 'fixa', conflictCell: 'em conflito',
     tapToContinue: 'Toque para continuar',
@@ -21,7 +24,7 @@ const I18N = {
 
     challenges: 'Desafios',
     challengesTitle: 'Desafios',
-    challengesSubtitle: 'Sobe nível a nível. Cada um mais difícil que o anterior.',
+    challengesSubtitle: 'Puzzles com menos pistas até ao nível expert. Repete níveis para melhorar as tuas estrelas.',
     level: 'Nível',
     locked: 'Bloqueado',
     levelReached: 'Nível',
@@ -69,10 +72,10 @@ const I18N = {
     htpConflictTitle: 'Conflitos',
     htpConflictBody: 'Se colocares um número que já existe na mesma linha, coluna ou bloco, essas células ficam destacadas a vermelho.',
     htpNotesTitle: 'Notas',
-    htpNotesBody: 'Ativa o modo notas para marcar candidatos possíveis numa célula, em vez de preencher um valor definitivo.',
+    htpNotesBody: 'Marca candidatos nas casas vazias. Ao colocar um número, essa nota é removida da mesma linha, coluna e bloco. Desfazer também recupera essas notas.',
     htpToolsTitle: 'Ferramentas',
-    htpHintTool: 'revela o valor correto de uma célula. Limitado por jogo.',
-    htpUndoTool: 'desfaz a tua última jogada.',
+    htpHintTool: 'Revela a resposta de uma casa. Há 3, 4 ou 5 dicas por partida. Uma dica usada continua a contar mesmo que desfaças a jogada.',
+    htpUndoTool: 'Recupera o valor e as notas anteriores. Os últimos 200 movimentos ficam guardados ao sair e retomar. Erros e dicas usados continuam a contar.',
     htpCloseButton: 'Entendido',
 
     langToggleLabel: 'Idioma',
@@ -80,6 +83,9 @@ const I18N = {
   },
 
   en: {
+    mistakes: 'Mistakes',
+    htpChallengeBody: 'Each digit that differs from the solution counts as a mistake, even without a visible conflict. Add mistakes and hints: 0 earns 3 stars, 1 to 3 earns 2 stars, 4 or more earns 1 star. Time does not affect stars. Your best result for each level is kept.',
+    htpChallengeTitle: 'Challenges and stars',
     row: 'Row', column: 'Column', emptyCell: 'empty', fixedCell: 'given', conflictCell: 'conflicting',
     metaTitle: 'SudokuWeb: Logic Puzzle',
     tapToContinue: 'Tap to continue',
@@ -99,7 +105,7 @@ const I18N = {
 
     challenges: 'Challenges',
     challengesTitle: 'Challenges',
-    challengesSubtitle: 'Climb level by level. Each one harder than the last.',
+    challengesSubtitle: 'Puzzles with fewer clues up to expert level. Replay levels to improve your stars.',
     level: 'Level',
     locked: 'Locked',
     levelReached: 'Level',
@@ -147,10 +153,10 @@ const I18N = {
     htpConflictTitle: 'Conflicts',
     htpConflictBody: 'If you place a number that already exists in the same row, column or box, those cells are highlighted in red.',
     htpNotesTitle: 'Notes',
-    htpNotesBody: 'Turn on notes mode to pencil in possible candidates for a cell, instead of committing a final value.',
+    htpNotesBody: 'Mark candidates in empty cells. Placing a digit removes that note from its row, column and box. Undo also restores those notes.',
     htpToolsTitle: 'Tools',
-    htpHintTool: 'reveals the correct value for a cell. Limited per game.',
-    htpUndoTool: 'reverts your last move.',
+    htpHintTool: 'Reveals a cell’s answer. Each game has 3, 4 or 5 hints. A used hint still counts even if you undo the move.',
+    htpUndoTool: 'Restores the previous value and notes. The last 200 moves are saved when you leave and resume. Mistakes and used hints still count.',
     htpCloseButton: 'Got It',
 
     langToggleLabel: 'Language',
