@@ -21,7 +21,7 @@ const context = vm.createContext({
   document: { hidden: false, addEventListener() {}, querySelectorAll: () => [], getElementById: node },
   setInterval: () => 1, clearInterval() {}, setTimeout() {}, clearTimeout() {},
 });
-for (const file of ['i18n', 'solver', 'challenge', 'generator', 'engine', 'sound', 'storage', 'overlays', 'ui']) {
+for (const file of ['i18n', 'solver', 'techniques', 'challenge', 'generator', 'engine', 'sound', 'storage', 'overlays', 'ui']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', `${file}.js`), 'utf8'), context);
 }
 const run = code => vm.runInContext(code, context);
@@ -156,7 +156,7 @@ for (const difficulty of ['easy', 'medium']) {
 run('game = SudokuGame.newGame("easy"); game.selectedIndex = null; game.hint()');
 check('["hidden", "naked"].includes(game.lastHint.technique)');
 check('game.values[game.lastHint.index] === game.solution[game.lastHint.index]');
-check('/\\d/.test(hintText(game.lastHint, I18N.pt)) && !hintText(game.lastHint, I18N.en).includes("{")');
+check('/\\d/.test(formatHint(game.lastHint, I18N.pt)) && !formatHint(game.lastHint, I18N.en).includes("{")');
 run('const empty = game.values.findIndex(v => v === 0); game.selectCell(empty); game.enterDigit(game.solution[empty] % 9 + 1)');
 check('game.lastHint', null);
 run('game.selectedIndex = null; game.hint()');
@@ -165,7 +165,37 @@ check('game.lastHint.index', run('empty'));
 check('game.values[empty] === game.solution[empty]');
 run('game.undo()');
 check('game.lastHint', null);
-check('hintText({ index: 10, digit: 4, technique: "hidden", unit: { type: "row", index: 1 } }, I18N.en)', 'In row 2, 4 only fits in column 2.');
+check('formatHint({ index: 10, digit: 4, technique: "hidden", unit: { type: "row", index: 1 }, eliminations: [], revealed: true }, I18N.en)', 'In row 2, 4 only fits in column 2.');
+// Elimination techniques on hand-made candidate grids.
+run('const pointing = Array(81).fill(0); pointing[0] = pointing[1] = 1 << 5; pointing[5] = (1 << 5) | (1 << 3)');
+check('JSON.stringify((e => [e.kind, e.removals])(findElimination(pointing)))', '["pointing",[[5,32]]]');
+run('const pairGrid = Array(81).fill(0); pairGrid[0] = pairGrid[1] = (1 << 2) | (1 << 7); pairGrid[2] = (1 << 2) | (1 << 4)');
+check('JSON.stringify((e => [e.kind, e.digits, e.removals])(findElimination(pairGrid)))', '["pair",[2,7],[[2,4]]]');
+check('formatHint({ index: 0, digit: 9, technique: "naked", unit: null, revealed: false, eliminations: [findElimination(pointing)] }, I18N.en)',
+  'In box 1, 5 can only go in row 1, so it leaves the rest of row 1.\nRow 1 has a cell where only one digit fits.\nPress Reveal to fill the cell in (uses a hint).');
+check('findElimination(Array(81).fill(0))', null);
+// Hard needs eliminations but no guessing; Easy/Medium never need them.
+for (let i = 0; i < 5; i++) {
+  run('game = SudokuGame.newGame("hard")');
+  check('solvesLogically(game.values, true) && !solvesLogically(game.values, false)');
+}
+// Hint deductions are sound and short: solving hard puzzles step by step never contradicts the solution.
+for (let i = 0; i < 3; i++) {
+  run(`game = SudokuGame.newGame("hard"); var work = game.values.slice(), sound = true, longest = 0;
+    for (let plan; (plan = planDeduction(work)); ) { longest = Math.max(longest, plan.eliminations.length);
+      if (game.solution[plan.single.index] !== plan.single.digit) sound = false; work[plan.single.index] = plan.single.digit; if (!work.includes(0)) break; }`);
+  check('sound && !work.includes(0) && longest <= 30');
+}
+// Clue first (free, board untouched), then the same cell is revealed.
+run('game = SudokuGame.newGame("hard"); game.selectedIndex = null; const before = game.values.join(); game.clue()');
+check('game.values.join() === before && game.hintsUsed === 0 && game.lastHint.revealed === false');
+check('/Revelar/.test(formatHint(game.lastHint, I18N.pt))');
+run('const clued = game.lastHint.index; handleHint()');
+check('game.hintsUsed === 1 && game.lastHint.revealed && game.lastHint.index === clued');
+check('game.values[clued] === game.solution[clued]');
+check('game.lastHint.highlight.length > 0');
+run('handleHint()');
+check('game.hintsUsed === 1 && game.lastHint.revealed === false');
 check('unitIndices("box", 4).join()', '30,31,32,39,40,41,48,49,50');
 // Sound preference persists and defaults to on.
 check('isSoundOn()');

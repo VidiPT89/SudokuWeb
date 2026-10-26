@@ -1,8 +1,11 @@
 /* Generates uniquely-solvable puzzles: fill an empty grid completely via randomized backtracking,
    then dig holes in shuffled cell order, keeping each removal only while the puzzle still has
-   exactly one solution (checked via countSolutions capped at 2). Puzzles with at least
-   SINGLES_ONLY_MIN_CLUES clues (Easy, Medium and the matching challenge levels) must also stay
-   solvable with singles alone, so they never need guessing and every hint has a deduction. */
+   exactly one solution (checked via countSolutions capped at 2). Puzzles are also graded by
+   the human techniques they need (see techniques.js), so they never require guessing:
+   - SINGLES_ONLY_MIN_CLUES+ clues (Easy, Medium and matching challenge levels): singles only;
+   - TECHNIQUES_MIN_CLUES+ clues (Hard and matching levels): singles plus pointing, claiming
+     and naked pairs;
+   - below that (expert challenge levels): any unique puzzle. */
 
 const DIFFICULTIES = {
   easy: { minClues: 40, maxHints: 3 },
@@ -38,9 +41,12 @@ function fillGrid(grid, index) {
 /* Digs a full solution towards targetClues cells (uniqueness may require more) while preserving a unique solution.
    Returns { given: Array(81), solution: Array(81) }. */
 const SINGLES_ONLY_MIN_CLUES = 32;
+const TECHNIQUES_MIN_CLUES = 26;
 
 function digOnce(targetClues) {
-  const singlesOnly = targetClues >= SINGLES_ONLY_MIN_CLUES;
+  const keepsUnique = targetClues >= SINGLES_ONLY_MIN_CLUES ? grid => solvesLogically(grid, false)
+    : targetClues >= TECHNIQUES_MIN_CLUES ? grid => solvesLogically(grid, true)
+    : grid => countSolutions(grid, 2) === 1;
   const solution = new Array(81).fill(0);
   fillGrid(solution, 0);
 
@@ -53,7 +59,7 @@ function digOnce(targetClues) {
     const backup = puzzle[idx];
     puzzle[idx] = 0;
 
-    if (singlesOnly ? solvesWithSingles(puzzle) : countSolutions(puzzle, 2) === 1) {
+    if (keepsUnique(puzzle)) {
       clues--;
     } else {
       puzzle[idx] = backup;
@@ -64,15 +70,21 @@ function digOnce(targetClues) {
 }
 
 /* A single dig can get stuck above the target on low clue counts, so retry a few times and
-   keep the sparsest puzzle. */
+   keep the sparsest puzzle. In the techniques band, prefer a puzzle that singles alone cannot
+   finish, so Hard really asks for the elimination techniques. */
 const DIG_ATTEMPTS = 12;
+const DIG_ATTEMPTS_FOR_ELIMINATIONS = 40;
 
 function digPuzzle(targetClues) {
+  const wantsEliminations = targetClues >= TECHNIQUES_MIN_CLUES && targetClues < SINGLES_ONLY_MIN_CLUES;
+  const score = dug => (dug.clues > targetClues ? 2 : 0) + (wantsEliminations && solvesLogically(dug.given, false) ? 1 : 0);
   let best = null;
-  for (let attempt = 0; attempt < DIG_ATTEMPTS; attempt++) {
+  const attempts = wantsEliminations ? DIG_ATTEMPTS_FOR_ELIMINATIONS : DIG_ATTEMPTS;
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const dug = digOnce(targetClues);
-    if (!best || dug.clues < best.clues) best = dug;
-    if (best.clues <= targetClues) break;
+    dug.score = score(dug);
+    if (!best || dug.score < best.score || (dug.score === best.score && dug.clues < best.clues)) best = dug;
+    if (best.score === 0) break;
   }
   return { given: best.given, solution: best.solution };
 }

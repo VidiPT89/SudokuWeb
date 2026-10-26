@@ -14,8 +14,8 @@ The interface opens with a short animated intro, and is fully bilingual, switchi
 - ✅ Uniquely-solvable puzzles — clues are removed one at a time, keeping each removal only if the puzzle still solves to exactly one grid
 - ✏️ Pencil-mark notes mode — jot down candidate digits in a cell instead of committing a final value
 - 🚫 Live conflict detection — placing a digit that already exists in the same row, column or 3x3 box highlights every conflicting cell
-- 💡 Teaching hints (3/4/5 per game by difficulty): a hint fixes a wrong digit first; otherwise it fills a cell through the simplest deduction available — a digit with only one possible cell in a box, row or column, or a cell with only one possible digit — highlights the unit and explains the reasoning in a sentence. Only when no simple deduction exists does it reveal the answer, and says so
-- 🧠 Easy and Medium puzzles are guaranteed solvable with those deductions alone — no guessing needed
+- 💡 Two-step teaching hints: the first tap gives a free **clue** — where to look, without filling anything; the second tap (**Reveal**, 3/4/5 per game by difficulty) fills the cell and explains the deduction. A wrong digit is fixed first; otherwise the hint uses the simplest technique that works — a single (only one cell for a digit in a box/row/column, or only one digit for a cell), exposed when needed by **pointing** or **claiming** candidates or a **naked pair** — and shows only the elimination steps that single actually needs
+- 🧠 Difficulty graded by human technique, never by guessing: Easy and Medium are solvable with singles alone; Hard always needs pointing/claiming candidates or naked pairs, and those are always enough
 - ↩️ Undo for the last 200 moves, including after resuming a saved game
 - 🔊 Short synthesized sounds (Web Audio, no audio files) with an on/off toggle in the game header, remembered between visits
 - 🎬 Smooth animations — pop-in on digit entry and hints, shake on conflicts, a confetti burst on winning
@@ -42,7 +42,8 @@ SudokuWeb/
 │   └── board.css       # Grid, controls, modals, challenges, responsive (loaded after style.css)
 ├── js/
 │   ├── i18n.js         # PT/EN strings and language persistence
-│   ├── solver.js       # Bitmask MRV solution counter, conflict scan, singles (hint techniques)
+│   ├── solver.js       # Bitmask MRV solution counter and conflict scan
+│   ├── techniques.js   # Human techniques: singles, pointing/claiming, naked pairs, grading
 │   ├── challenge.js    # Endless challenge ladder, stars and level picker
 │   ├── generator.js    # Randomized full-grid fill + hole digging with uniqueness checks
 │   ├── engine.js       # Board state, dispatch results, undo stack, teaching hints, snapshots
@@ -69,8 +70,10 @@ SudokuWeb/
      - otherwise put the digit back
    stop once the difficulty's target clue count is reached; a dig that
    gets stuck above the target is retried (up to 12 times) and the
-   sparsest puzzle is kept. Puzzles with 32+ clues (Easy, Medium and the
-   matching challenge levels) must also stay solvable with singles only
+   sparsest puzzle is kept. Removals must also keep the puzzle solvable by
+   human techniques: singles only at 32+ clues (Easy, Medium), singles +
+   pointing/claiming/naked pairs at 26-31 (Hard — which is retried until
+   singles alone are not enough); expert levels below 26 only need uniqueness
 
 3. The uniqueness check is a bitmask MRV (minimum-remaining-values)
    backtracker: row/column/box digits live in 9-bit masks and the search
@@ -81,11 +84,13 @@ SudokuWeb/
 
 ### Hints & conflicts
 ```
-Hint: for the selected cell (if empty or wrong), else for any wrong
-      entry, else for the easiest single on the board (box, then row,
-      column, then naked single) — reasoning only from correct digits.
-      Reveals the value plus a one-sentence explanation. Capped per game
-      by difficulty (Easy 3 / Medium 4 / Hard 5).
+Hint: plans the selected cell (if empty or wrong), else any wrong
+      entry, else the easiest single on the board (box, then row,
+      column, then naked single), applying eliminations only when no
+      single exists and pruning the chain to the steps it needs —
+      reasoning only from correct digits. First tap: free clue. Second
+      tap: reveal + explanation, capped per game (Easy 3 / Medium 4 /
+      Hard 5).
 
 Conflicts: recomputed from scratch after every move — for each row,
       column and 3x3 box, any digit appearing more than once flags

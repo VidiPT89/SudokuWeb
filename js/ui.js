@@ -132,7 +132,7 @@ function refreshBoard() {
   const selectedCell = (selectedIndex !== null && selectedIndex !== undefined) ? cells[selectedIndex] : null;
   const dict = I18N[currentLang];
   const hint = game.lastHint;
-  const hintUnit = new Set(hint?.unit ? unitIndices(hint.unit.type, hint.unit.index) : []);
+  const hintUnit = new Set(hint ? hint.highlight : []);
 
   cells.forEach((cellData, idx) => {
     const div = cellEls[idx];
@@ -158,16 +158,9 @@ function refreshBoard() {
 
   refreshNumberPad(cells);
   const explain = el('hint-explain');
-  explain.textContent = hint ? hintText(hint, dict) : '';
+  explain.textContent = hint ? formatHint(hint, dict) : '';
   explain.classList.toggle('hidden', !hint);
-}
-
-function hintText(hint, dict) {
-  const key = hint.technique === 'hidden'
-    ? { box: 'hintHiddenBox', row: 'hintHiddenRow', col: 'hintHiddenCol' }[hint.unit.type]
-    : { naked: 'hintNaked', wrong: 'hintWrong', reveal: 'hintReveal' }[hint.technique];
-  const values = { r: Math.floor(hint.index / 9) + 1, c: (hint.index % 9) + 1, d: hint.digit };
-  return dict[key].replace(/\{(\w)\}/g, (_, k) => values[k]);
+  el('hint-label').textContent = hint && !hint.revealed ? dict.reveal : dict.hint;
 }
 
 function pulse(index, className) {
@@ -289,6 +282,10 @@ function handleResult(result) {
       saveGame();
       break;
 
+    case 'hintClue':
+      refreshBoard();
+      break;
+
     case 'hintExhausted':
       showToast(I18N[currentLang].noHintsLeft);
       break;
@@ -320,7 +317,8 @@ function handleUndo() {
 
 function handleHint() {
   if (!game) return;
-  handleResult(game.hint());
+  // First press shows a free clue; pressing again while it is showing reveals the cell.
+  handleResult(game.lastHint && !game.lastHint.revealed ? game.hint() : game.clue());
 }
 
 function handleNotesToggle() {
@@ -414,7 +412,6 @@ function updateStats() {
 function refreshHintBadge() {
   if (!game) return;
   el('hint-count').textContent = game.hintsRemaining;
-  el('btn-hint').disabled = game.hintsRemaining <= 0;
   el('btn-undo').disabled = !game.canUndo;
 }
 
