@@ -174,10 +174,23 @@ check('JSON.stringify((e => [e.kind, e.digits, e.removals])(findElimination(pair
 check('formatHint({ index: 0, digit: 9, technique: "naked", unit: null, revealed: false, eliminations: [findElimination(pointing)] }, I18N.en)',
   'In box 1, 5 can only go in row 1, so it leaves the rest of row 1.\nRow 1 has a cell where only one digit fits.\nPress Reveal to fill the cell in (uses a hint).');
 check('findElimination(Array(81).fill(0))', null);
+run('const xwing = Array(81).fill(0); xwing[1] = xwing[6] = xwing[37] = xwing[42] = 1 << 3; xwing[64] = (1 << 3) | (1 << 5)');
+check('JSON.stringify((e => [e.kind, e.base, e.cover, e.removals])(findElimination(xwing)))', '["xwing",[0,4],[1,6],[[64,8]]]');
+check('findElimination(xwing, TECHNIQUE.BASIC)', null);
+check('formatHint({ index: 64, digit: 5, technique: "naked", unit: null, revealed: true, eliminations: [findElimination(xwing)] }, I18N.en).split("\\n")[0]',
+  'X-Wing: in rows 1 and 5, 3 can only go in columns 2 and 7, so it leaves the other cells of those columns.');
+check('(m => replayElimination(m, findElimination(xwing)) && m[64])(xwing.slice())', 1 << 5);
+run('xwing[40] = 1 << 3'); // a third spot on row 5 breaks the X-Wing
+check('(m => replayElimination(m, { kind: "xwing", digits: [3], source: { type: "row", index: 0 }, target: { type: "col", index: 1 }, base: [0, 4], cover: [1, 6], cells: [] }))(xwing.slice())', false);
+// Expert levels are always solvable by logic (up to X-Wing), never by guessing.
+for (let i = 0; i < 3; i++) {
+  run('game = SudokuGame.newChallenge(100)');
+  check('solvesLogically(game.values, TECHNIQUE.XWING)');
+}
 // Hard needs eliminations but no guessing; Easy/Medium never need them.
 for (let i = 0; i < 5; i++) {
   run('game = SudokuGame.newGame("hard")');
-  check('solvesLogically(game.values, true) && !solvesLogically(game.values, false)');
+  check('solvesLogically(game.values, TECHNIQUE.BASIC) && !solvesLogically(game.values, TECHNIQUE.SINGLES)');
 }
 // Hint deductions are sound and short: solving hard puzzles step by step never contradicts the solution.
 for (let i = 0; i < 3; i++) {

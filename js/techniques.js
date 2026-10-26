@@ -2,8 +2,12 @@
    - singles: a digit with one possible cell in a box/row/column (hidden), or a cell with one
      possible digit (naked);
    - eliminations: pointing (a box's candidates for a digit sit on one line), claiming (a line's
-     candidates for a digit sit in one box) and naked pairs.
-   Candidates are 9-bit masks (bit d = digit d); filled cells have mask 0. */
+     candidates for a digit sit in one box), naked pairs and, the hardest, X-Wing (in two rows a
+     digit fits only in the same two columns, or the transpose).
+   Candidates are 9-bit masks (bit d = digit d); filled cells have mask 0.
+   Technique levels grade puzzles: SINGLES < BASIC (pointing, claiming, pairs) < XWING. */
+
+const TECHNIQUE = { SINGLES: 0, BASIC: 1, XWING: 2 };
 
 function unitIndices(type, n) {
   if (type === 'row') return Array.from({ length: 9 }, (_, i) => n * 9 + i);
@@ -16,6 +20,9 @@ const UNIT_CELLS = { box: [], row: [], col: [] };
 for (const type of ['box', 'row', 'col']) for (let n = 0; n < 9; n++) UNIT_CELLS[type].push(unitIndices(type, n));
 
 const boxOf = idx => Math.floor(Math.floor(idx / 9) / 3) * 3 + Math.floor((idx % 9) / 3);
+const ROW_OF = Array.from({ length: 81 }, (_, i) => Math.floor(i / 9));
+const COL_OF = Array.from({ length: 81 }, (_, i) => i % 9);
+const BOX_OF = Array.from({ length: 81 }, (_, i) => boxOf(i));
 
 const PEERS = Array.from({ length: 81 }, (_, idx) => {
   const peers = new Set([...UNIT_CELLS.row[Math.floor(idx / 9)], ...UNIT_CELLS.col[idx % 9], ...UNIT_CELLS.box[boxOf(idx)]]);
@@ -31,9 +38,13 @@ function candidateMasks(grid) {
   for (let idx = 0; idx < 81; idx++) {
     if (!grid[idx]) continue;
     const bit = 1 << grid[idx];
-    rows[Math.floor(idx / 9)] |= bit; cols[idx % 9] |= bit; boxes[boxOf(idx)] |= bit;
+    rows[ROW_OF[idx]] |= bit; cols[COL_OF[idx]] |= bit; boxes[BOX_OF[idx]] |= bit;
   }
-  return grid.map((v, idx) => (v ? 0 : ~(rows[Math.floor(idx / 9)] | cols[idx % 9] | boxes[boxOf(idx)]) & 0x3fe));
+  const masks = new Array(81);
+  for (let idx = 0; idx < 81; idx++) {
+    masks[idx] = grid[idx] ? 0 : ~(rows[ROW_OF[idx]] | cols[COL_OF[idx]] | boxes[BOX_OF[idx]]) & 0x3fe;
+  }
+  return masks;
 }
 
 function digitsOf(mask) {
@@ -72,49 +83,92 @@ function findSingle(grid, onlyIndex = null) {
   return findSingleIn(candidateMasks(grid), onlyIndex);
 }
 
-/* First elimination that removes at least one candidate, or null.
-   Returns { kind: 'pointing' | 'claiming' | 'pair', digits, source, target, cells, removals }
-   where source/target are units ({ type, index }), cells are the cells that justify it and
-   removals are [index, mask] pairs to clear. */
-function findElimination(masks) {
-  const removalsIn = (cells, keep, bits) => cells
-    .filter(i => !keep.includes(i) && (masks[i] & bits))
-    .map(i => [i, masks[i] & bits]);
-
+/* First elimination up to `level` that removes at least one candidate, simplest first, or null.
+   Returns { kind: 'pointing' | 'claiming' | 'pair' | 'xwing', digits, source, target, cells,
+   removals } where source/target are units ({ type, index }), cells are the cells that justify
+   it and removals are [index, mask] pairs to clear. An X-Wing also carries `base` and `cover`:
+   the two lines (of source.type) holding the digit and the two crossing lines (of target.type). */
+function findElimination(masks, level = TECHNIQUE.XWING) {
+  // Pointing: a box's candidates for a digit all sit on one row or column.
   for (let b = 0; b < 9; b++) {
     const box = UNIT_CELLS.box[b];
     for (let d = 1; d <= 9; d++) {
-      const homes = box.filter(i => masks[i] & (1 << d));
-      if (homes.length < 2) continue;
-      for (const type of ['row', 'col']) {
-        const line = type === 'row' ? Math.floor(homes[0] / 9) : homes[0] % 9;
-        if (!homes.every(i => (type === 'row' ? Math.floor(i / 9) : i % 9) === line)) continue;
-        const removals = removalsIn(UNIT_CELLS[type][line], homes, 1 << d);
-        if (removals.length) return { kind: 'pointing', digits: [d], source: { type: 'box', index: b }, target: { type, index: line }, cells: homes, removals };
+      const bit = 1 << d;
+      let rowsSeen = 0, colsSeen = 0, count = 0;
+      for (const i of box) if (masks[i] & bit) { rowsSeen |= 1 << ROW_OF[i]; colsSeen |= 1 << COL_OF[i]; count++; }
+      if (count < 2) continue;
+      for (const [type, seen] of [['row', rowsSeen], ['col', colsSeen]]) {
+        if (seen & (seen - 1)) continue; // spread over more than one line
+        const line = digitsOf(seen << 1)[0] - 1;
+        const removals = [];
+        for (const i of UNIT_CELLS[type][line]) if (BOX_OF[i] !== b && (masks[i] & bit)) removals.push([i, bit]);
+        if (removals.length) {
+          const homes = box.filter(i => masks[i] & bit);
+          return { kind: 'pointing', digits: [d], source: { type: 'box', index: b }, target: { type, index: line }, cells: homes, removals };
+        }
       }
     }
   }
+  // Claiming: a row's or column's candidates for a digit all sit in one box.
   for (const type of ['row', 'col']) {
+    const lineOf = type === 'row' ? ROW_OF : COL_OF;
     for (let n = 0; n < 9; n++) {
       const line = UNIT_CELLS[type][n];
       for (let d = 1; d <= 9; d++) {
-        const homes = line.filter(i => masks[i] & (1 << d));
-        if (homes.length < 2 || !homes.every(i => boxOf(i) === boxOf(homes[0]))) continue;
-        const removals = removalsIn(UNIT_CELLS.box[boxOf(homes[0])], homes, 1 << d);
-        if (removals.length) return { kind: 'claiming', digits: [d], source: { type, index: n }, target: { type: 'box', index: boxOf(homes[0]) }, cells: homes, removals };
+        const bit = 1 << d;
+        let boxesSeen = 0, count = 0;
+        for (const i of line) if (masks[i] & bit) { boxesSeen |= 1 << BOX_OF[i]; count++; }
+        if (count < 2 || (boxesSeen & (boxesSeen - 1))) continue;
+        const b = digitsOf(boxesSeen << 1)[0] - 1;
+        const removals = [];
+        for (const i of UNIT_CELLS.box[b]) if (lineOf[i] !== n && (masks[i] & bit)) removals.push([i, bit]);
+        if (removals.length) {
+          const homes = line.filter(i => masks[i] & bit);
+          return { kind: 'claiming', digits: [d], source: { type, index: n }, target: { type: 'box', index: b }, cells: homes, removals };
+        }
       }
     }
   }
+  // Naked pair: two cells of a unit with the same two candidates.
   for (const type of UNIT_ORDER) {
     for (let n = 0; n < 9; n++) {
       const cells = UNIT_CELLS[type][n];
-      const pairs = cells.filter(i => bitCount(masks[i]) === 2);
-      for (let a = 0; a < pairs.length; a++) {
-        for (let b = a + 1; b < pairs.length; b++) {
-          if (masks[pairs[a]] !== masks[pairs[b]]) continue;
-          const pair = [pairs[a], pairs[b]];
-          const removals = removalsIn(cells, pair, masks[pair[0]]);
-          if (removals.length) return { kind: 'pair', digits: digitsOf(masks[pair[0]]), source: { type, index: n }, target: { type, index: n }, cells: pair, removals };
+      for (let a = 0; a < 9; a++) {
+        const pairMask = masks[cells[a]];
+        if (bitCount(pairMask) !== 2) continue;
+        for (let b = a + 1; b < 9; b++) {
+          if (masks[cells[b]] !== pairMask) continue;
+          const removals = [];
+          for (const i of cells) if (i !== cells[a] && i !== cells[b] && (masks[i] & pairMask)) removals.push([i, masks[i] & pairMask]);
+          if (removals.length) {
+            return { kind: 'pair', digits: digitsOf(pairMask), source: { type, index: n }, target: { type, index: n }, cells: [cells[a], cells[b]], removals };
+          }
+        }
+      }
+    }
+  }
+  return level >= TECHNIQUE.XWING ? findXWing(masks) : null;
+}
+
+function findXWing(masks) {
+  for (const [baseType, coverType] of [['row', 'col'], ['col', 'row']]) {
+    for (let d = 1; d <= 9; d++) {
+      const bit = 1 << d;
+      // positions[line] = 9-bit mask of the cover lines where the digit can sit on that base line.
+      const positions = UNIT_CELLS[baseType].map(cells => cells.reduce((m, i, k) => (masks[i] & bit ? m | (1 << k) : m), 0));
+      for (let a = 0; a < 9; a++) {
+        if (bitCount(positions[a]) !== 2) continue;
+        for (let b = a + 1; b < 9; b++) {
+          if (positions[b] !== positions[a]) continue;
+          const cover = digitsOf(positions[a] << 1).map(k => k - 1);
+          const cells = [a, b].flatMap(line => cover.map(k => UNIT_CELLS[baseType][line][k]));
+          const removals = cover.flatMap(c => UNIT_CELLS[coverType][c])
+            .filter(i => !cells.includes(i) && (masks[i] & bit))
+            .map(i => [i, bit]);
+          if (removals.length) {
+            return { kind: 'xwing', digits: [d], source: { type: baseType, index: a }, target: { type: coverType, index: cover[0] },
+              base: [a, b], cover, cells, removals };
+          }
         }
       }
     }
@@ -130,6 +184,15 @@ function applyElimination(masks, elimination) {
    reason no longer holds (it depended on an elimination that was dropped). */
 function replayElimination(masks, e) {
   const bits = e.digits.reduce((m, d) => m | (1 << d), 0);
+  if (e.kind === 'xwing') {
+    // Each base line must still hold the digit, and only on the cover lines.
+    const coverCells = e.cover.flatMap(c => UNIT_CELLS[e.target.type][c]);
+    const baseCells = e.base.flatMap(b => UNIT_CELLS[e.source.type][b]);
+    if (!e.base.every(b => UNIT_CELLS[e.source.type][b].some(i => masks[i] & bits))) return false;
+    if (baseCells.some(i => (masks[i] & bits) && !coverCells.includes(i))) return false;
+    coverCells.forEach(i => { if (!baseCells.includes(i)) masks[i] &= ~bits; });
+    return true;
+  }
   const source = UNIT_CELLS[e.source.type][e.source.index];
   const target = UNIT_CELLS[e.target.type][e.target.index];
   if (e.kind === 'pair') {
@@ -173,10 +236,9 @@ function planDeduction(grid, onlyIndex = null, maxEliminations = 30) {
   return { single, eliminations };
 }
 
-/* True when the grid can be completed by forced steps only: singles, plus the eliminations
-   when `withEliminations` is set. Every step is forced, so a grid that passes also has exactly
-   one solution. */
-function solvesLogically(grid, withEliminations = false) {
+/* True when the grid can be completed by forced steps only, using techniques up to `level`.
+   Every step is forced, so a grid that passes also has exactly one solution. */
+function solvesLogically(grid, level = TECHNIQUE.SINGLES) {
   const work = grid.slice();
   const masks = candidateMasks(work);
   let empty = work.reduce((n, v) => n + (v === 0), 0);
@@ -193,7 +255,7 @@ function solvesLogically(grid, withEliminations = false) {
       }
       continue;
     }
-    const elimination = withEliminations ? findElimination(masks) : null;
+    const elimination = level > TECHNIQUE.SINGLES ? findElimination(masks, level) : null;
     if (!elimination) return false;
     applyElimination(masks, elimination);
   }
@@ -201,5 +263,5 @@ function solvesLogically(grid, withEliminations = false) {
 }
 
 function solvesWithSingles(grid) {
-  return solvesLogically(grid, false);
+  return solvesLogically(grid, TECHNIQUE.SINGLES);
 }

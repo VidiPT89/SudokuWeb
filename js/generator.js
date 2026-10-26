@@ -5,7 +5,7 @@
    - SINGLES_ONLY_MIN_CLUES+ clues (Easy, Medium and matching challenge levels): singles only;
    - TECHNIQUES_MIN_CLUES+ clues (Hard and matching levels): singles plus pointing, claiming
      and naked pairs;
-   - below that (expert challenge levels): any unique puzzle. */
+   - below that (expert challenge levels): all of those plus X-Wing. */
 
 const DIFFICULTIES = {
   easy: { minClues: 40, maxHints: 3 },
@@ -43,10 +43,17 @@ function fillGrid(grid, index) {
 const SINGLES_ONLY_MIN_CLUES = 32;
 const TECHNIQUES_MIN_CLUES = 26;
 
-function digOnce(targetClues) {
-  const keepsUnique = targetClues >= SINGLES_ONLY_MIN_CLUES ? grid => solvesLogically(grid, false)
-    : targetClues >= TECHNIQUES_MIN_CLUES ? grid => solvesLogically(grid, true)
-    : grid => countSolutions(grid, 2) === 1;
+/* Technique band for a clue target: the hardest technique allowed and the dig budget spent
+   looking for a puzzle that really needs it. X-Wing puzzles are rare (a few per hundred digs),
+   so after `settleAfter` attempts an expert search accepts one that needs the basic
+   eliminations, which almost every expert level reaches. */
+function techniqueBand(targetClues) {
+  if (targetClues >= SINGLES_ONLY_MIN_CLUES) return { level: TECHNIQUE.SINGLES, attempts: 12, settleAfter: 12 };
+  if (targetClues >= TECHNIQUES_MIN_CLUES) return { level: TECHNIQUE.BASIC, attempts: 40, settleAfter: 40 };
+  return { level: TECHNIQUE.XWING, attempts: 60, settleAfter: 20 };
+}
+
+function digOnce(targetClues, level) {
   const solution = new Array(81).fill(0);
   fillGrid(solution, 0);
 
@@ -59,7 +66,7 @@ function digOnce(targetClues) {
     const backup = puzzle[idx];
     puzzle[idx] = 0;
 
-    if (keepsUnique(puzzle)) {
+    if (solvesLogically(puzzle, level)) {
       clues--;
     } else {
       puzzle[idx] = backup;
@@ -69,22 +76,24 @@ function digOnce(targetClues) {
   return { given: puzzle, solution, clues };
 }
 
-/* A single dig can get stuck above the target on low clue counts, so retry a few times and
-   keep the sparsest puzzle. In the techniques band, prefer a puzzle that singles alone cannot
-   finish, so Hard really asks for the elimination techniques. */
-const DIG_ATTEMPTS = 12;
-const DIG_ATTEMPTS_FOR_ELIMINATIONS = 40;
-
+/* A single dig can get stuck above the target on low clue counts, so retry and keep the best
+   puzzle: first one that reaches the target, then one the simpler technique levels cannot
+   finish, so Hard asks for eliminations and expert levels for X-Wing when one turns up. */
 function digPuzzle(targetClues) {
-  const wantsEliminations = targetClues >= TECHNIQUES_MIN_CLUES && targetClues < SINGLES_ONLY_MIN_CLUES;
-  const score = dug => (dug.clues > targetClues ? 2 : 0) + (wantsEliminations && solvesLogically(dug.given, false) ? 1 : 0);
+  const { level, attempts, settleAfter } = techniqueBand(targetClues);
+  // Lower is better: reaching the target clue count matters most, then needing every technique
+  // level the band allows (each simpler level that still finishes the puzzle costs a point).
+  const score = dug => {
+    let points = dug.clues > targetClues ? level + 1 : 0;
+    for (let simpler = TECHNIQUE.SINGLES; simpler < level; simpler++) if (solvesLogically(dug.given, simpler)) points++;
+    return points;
+  };
   let best = null;
-  const attempts = wantsEliminations ? DIG_ATTEMPTS_FOR_ELIMINATIONS : DIG_ATTEMPTS;
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const dug = digOnce(targetClues);
+    const dug = digOnce(targetClues, level);
     dug.score = score(dug);
     if (!best || dug.score < best.score || (dug.score === best.score && dug.clues < best.clues)) best = dug;
-    if (best.score === 0) break;
+    if (best.score === 0 || (attempt + 1 >= settleAfter && best.score <= 1)) break;
   }
   return { given: best.given, solution: best.solution };
 }
