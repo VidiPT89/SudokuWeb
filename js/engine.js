@@ -209,50 +209,71 @@ class SudokuGame {
     this.notesMode = !this.notesMode;
   }
 
-  /* Fixes a wrong entry first; otherwise fills a cell through the simplest deduction available
-     (a single), explained in `lastHint`, and only reveals blindly when no single applies. */
-  hint() {
-    if (this.isWon) return { type: 'ignored' };
-    if (this.hintsUsed >= this.maxHints) return { type: 'hintExhausted' };
-
+  /* Plans the next hint without changing the board: a wrong entry first (the selected cell,
+     else any); otherwise the simplest deduction — a single, possibly exposed by a short chain
+     of eliminations — reasoning only from correct digits; a blind reveal only when nothing
+     applies. `highlight` lists the cells the explanation talks about. */
+  planHint() {
     const editable = i => !this.givenMask[i] && this.values[i] !== this.solution[i];
-    // Wrong entries are left out so every deduction follows from correct digits only.
     const board = this.values.map((v, i) => (v === this.solution[i] ? v : 0));
     const selected = this.selectedIndex;
-    let target;
-    let step = null;
+    const wrongAt = i => ({ index: i, technique: 'wrong', unit: { type: 'row', index: Math.floor(i / 9) }, eliminations: [] });
+    let plan = null;
     if (selected !== null && selected !== undefined && editable(selected)) {
-      target = selected;
-      if (this.values[selected] === 0) step = findSingle(board, selected);
+      if (this.values[selected] !== 0) plan = wrongAt(selected);
+      else {
+        const deduction = planDeduction(board, selected);
+        plan = deduction ? { ...deduction.single, eliminations: deduction.eliminations }
+          : { index: selected, technique: 'reveal', unit: null, eliminations: [] };
+      }
     } else {
       const wrong = [];
       for (let i = 0; i < 81; i++) if (editable(i) && this.values[i] !== 0) wrong.push(i);
-      if (wrong.length) {
-        target = wrong[Math.floor(Math.random() * wrong.length)];
-      } else {
-        step = findSingle(board);
-        if (step) {
-          target = step.index;
-        } else {
+      if (wrong.length) plan = wrongAt(wrong[Math.floor(Math.random() * wrong.length)]);
+      else {
+        const deduction = planDeduction(board);
+        if (deduction) plan = { ...deduction.single, eliminations: deduction.eliminations };
+        else {
           const candidates = [];
           for (let i = 0; i < 81; i++) if (editable(i)) candidates.push(i);
-          if (candidates.length === 0) return { type: 'hintExhausted' };
-          target = candidates[Math.floor(Math.random() * candidates.length)];
+          if (!candidates.length) return null;
+          const index = candidates[Math.floor(Math.random() * candidates.length)];
+          plan = { index, technique: 'reveal', unit: null, eliminations: [] };
         }
       }
     }
+    const highlight = new Set(plan.unit ? unitIndices(plan.unit.type, plan.unit.index) : []);
+    if (plan.technique === 'naked') unitIndices('row', Math.floor(plan.index / 9)).forEach(i => highlight.add(i));
+    plan.eliminations.forEach(e => e.cells.forEach(i => highlight.add(i)));
+    return { ...plan, digit: this.solution[plan.index], highlight: [...highlight], revealed: false };
+  }
 
-    const technique = this.values[target] !== 0 ? 'wrong' : (step ? step.technique : 'reveal');
-    const digit = this.solution[target];
-    this.pushUndo(target, digit);
-    this.values[target] = digit;
-    this.notes[target].clear();
+  /* First half of a hint: explains where to look without filling anything. Free. */
+  clue() {
+    if (this.isWon) return { type: 'ignored' };
+    const plan = this.planHint();
+    if (!plan) return { type: 'hintExhausted' };
+    this.lastHint = plan;
+    return { type: 'hintClue' };
+  }
+
+  /* Fills the planned cell (the pending clue's, if one is showing) and costs a hint. */
+  hint() {
+    if (this.isWon) return { type: 'ignored' };
+    if (this.hintsUsed >= this.maxHints) return { type: 'hintExhausted' };
+    const plan = this.lastHint && !this.lastHint.revealed ? this.lastHint : this.planHint();
+    if (!plan) return { type: 'hintExhausted' };
+
+    const { index, digit } = plan;
+    this.pushUndo(index, digit);
+    this.values[index] = digit;
+    this.notes[index].clear();
     this.hintsUsed++;
     this.moves++;
-    this.selectedIndex = target;
-    this.lastHint = { index: target, digit, technique, unit: step ? step.unit : null };
+    this.selectedIndex = index;
+    this.lastHint = { ...plan, revealed: true };
     if (this.isWon) this.pause();
-    return this.isWon ? { type: 'won' } : { type: 'hintRevealed', index: target, digit };
+    return this.isWon ? { type: 'won' } : { type: 'hintRevealed', index, digit };
   }
 
   pushUndo(index, digit = null) {

@@ -46,6 +46,20 @@ const I18N = {
     noHintsLeft: 'Sem mais dicas disponíveis.',
     nothingToUndo: 'Nada para anular.',
     sound: 'Som',
+    reveal: 'Revelar',
+    lineRow: 'linha {n}', lineCol: 'coluna {n}',
+    ofRow: 'da linha {n}', ofCol: 'da coluna {n}', ofBox: 'do bloco {n}',
+    cellRef: '(linha {r}, coluna {c})', and: ' e ',
+    elimPointing: 'No bloco {b}, o {d} só pode ficar na {line}, por isso sai do resto da {line}.',
+    elimClaiming: 'Na {line}, o {d} só pode ficar no bloco {b}, por isso sai das outras casas desse bloco.',
+    elimPair: 'As casas {cells} só aceitam o {a} e o {e}, por isso esses números saem das outras casas {of}.',
+    clueWrong: 'Há um número errado na linha {r}.',
+    clueHiddenBox: 'Olha para o bloco destacado: o {d} só tem uma casa possível.',
+    clueHiddenRow: 'Olha para a linha {r}: o {d} só tem uma casa possível.',
+    clueHiddenCol: 'Olha para a coluna {c}: o {d} só tem uma casa possível.',
+    clueNaked: 'Na linha {r} há uma casa onde só cabe um número.',
+    clueReveal: 'Não há dedução simples neste momento.',
+    clueNext: 'Carrega em Revelar para preencher a casa (gasta uma dica).',
     hintHiddenBox: 'No bloco destacado, o {d} só cabe na linha {r}, coluna {c}.',
     hintHiddenRow: 'Na linha {r}, o {d} só cabe na coluna {c}.',
     hintHiddenCol: 'Na coluna {c}, o {d} só cabe na linha {r}.',
@@ -80,7 +94,7 @@ const I18N = {
     htpNotesTitle: 'Notas',
     htpNotesBody: 'Marca candidatos nas casas vazias. Ao colocar um número, essa nota é removida da mesma linha, coluna e bloco. Desfazer também recupera essas notas.',
     htpToolsTitle: 'Ferramentas',
-    htpHintTool: 'Corrige primeiro um número errado; senão preenche uma casa pela dedução mais simples e explica porquê. Há 3, 4 ou 5 dicas por partida. Uma dica usada continua a contar mesmo que desfaças a jogada.',
+    htpHintTool: 'O primeiro toque dá uma pista grátis: onde olhar, sem preencher. O segundo (Revelar) preenche a casa e explica a dedução: um número errado primeiro; senão sozinhos, candidatos apontados, reclamados ou pares. Há 3, 4 ou 5 revelações por partida e uma usada continua a contar mesmo que desfaças a jogada.',
     htpUndoTool: 'Recupera o valor e as notas anteriores. Os últimos 200 movimentos ficam guardados ao sair e retomar. Erros e dicas usados continuam a contar.',
     htpCloseButton: 'Entendido',
   },
@@ -130,6 +144,20 @@ const I18N = {
     noHintsLeft: 'No more hints available.',
     nothingToUndo: 'Nothing to undo.',
     sound: 'Sound',
+    reveal: 'Reveal',
+    lineRow: 'row {n}', lineCol: 'column {n}',
+    ofRow: 'row {n}', ofCol: 'column {n}', ofBox: 'box {n}',
+    cellRef: '(row {r}, column {c})', and: ' and ',
+    elimPointing: 'In box {b}, {d} can only go in {line}, so it leaves the rest of {line}.',
+    elimClaiming: 'In {line}, {d} can only go in box {b}, so it leaves the other cells of that box.',
+    elimPair: 'Cells {cells} only take {a} and {e}, so those digits leave the other cells of {of}.',
+    clueWrong: 'There is a wrong digit in row {r}.',
+    clueHiddenBox: 'Look at the highlighted box: {d} has only one possible cell.',
+    clueHiddenRow: 'Look at row {r}: {d} has only one possible cell.',
+    clueHiddenCol: 'Look at column {c}: {d} has only one possible cell.',
+    clueNaked: 'Row {r} has a cell where only one digit fits.',
+    clueReveal: 'No simple deduction applies right now.',
+    clueNext: 'Press Reveal to fill the cell in (uses a hint).',
     hintHiddenBox: 'In the highlighted box, {d} only fits in row {r}, column {c}.',
     hintHiddenRow: 'In row {r}, {d} only fits in column {c}.',
     hintHiddenCol: 'In column {c}, {d} only fits in row {r}.',
@@ -164,7 +192,7 @@ const I18N = {
     htpNotesTitle: 'Notes',
     htpNotesBody: 'Mark candidates in empty cells. Placing a digit removes that note from its row, column and box. Undo also restores those notes.',
     htpToolsTitle: 'Tools',
-    htpHintTool: 'Fixes a wrong digit first; otherwise fills a cell through the simplest deduction and explains why. Each game has 3, 4 or 5 hints. A used hint still counts even if you undo the move.',
+    htpHintTool: 'The first tap gives a free clue: where to look, without filling anything. The second (Reveal) fills the cell and explains the deduction: a wrong digit first; otherwise singles, pointing or claiming candidates, or pairs. Each game has 3, 4 or 5 reveals and a used one still counts even if you undo the move.',
     htpUndoTool: 'Restores the previous value and notes. The last 200 moves are saved when you leave and resume. Mistakes and used hints still count.',
     htpCloseButton: 'Got It',
   },
@@ -182,4 +210,31 @@ function getStoredLang() {
 
 function setStoredLang(lang) {
   try { localStorage.setItem('sudokuweb-lang', lang); } catch (e) { /* ignore */ }
+}
+
+/* Builds the hint panel text: the elimination steps, then either the clue (where to look) or,
+   once revealed, the deduction that fills the cell. One sentence per line. */
+function formatHint(hint, dict) {
+  const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, k) => values[k]);
+  const r = Math.floor(hint.index / 9) + 1, c = (hint.index % 9) + 1, d = hint.digit;
+  const line = unit => fill(unit.type === 'row' ? dict.lineRow : dict.lineCol, { n: unit.index + 1 });
+  const cellRef = i => fill(dict.cellRef, { r: Math.floor(i / 9) + 1, c: (i % 9) + 1 });
+  const lines = hint.eliminations.map(e => {
+    if (e.kind === 'pointing') return fill(dict.elimPointing, { b: e.source.index + 1, d: e.digits[0], line: line(e.target) });
+    if (e.kind === 'claiming') return fill(dict.elimClaiming, { b: e.target.index + 1, d: e.digits[0], line: line(e.source) });
+    const of = fill({ row: dict.ofRow, col: dict.ofCol, box: dict.ofBox }[e.source.type], { n: e.source.index + 1 });
+    return fill(dict.elimPair, { cells: e.cells.map(cellRef).join(dict.and), a: e.digits[0], e: e.digits[1], of });
+  });
+  if (hint.revealed) {
+    const key = hint.technique === 'hidden'
+      ? { box: 'hintHiddenBox', row: 'hintHiddenRow', col: 'hintHiddenCol' }[hint.unit.type]
+      : { naked: 'hintNaked', wrong: 'hintWrong', reveal: 'hintReveal' }[hint.technique];
+    lines.push(fill(dict[key], { r, c, d }));
+  } else {
+    const key = hint.technique === 'hidden'
+      ? { box: 'clueHiddenBox', row: 'clueHiddenRow', col: 'clueHiddenCol' }[hint.unit.type]
+      : { naked: 'clueNaked', wrong: 'clueWrong', reveal: 'clueReveal' }[hint.technique];
+    lines.push(fill(dict[key], { r, c, d }), dict.clueNext);
+  }
+  return lines.join('\n');
 }
