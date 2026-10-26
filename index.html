@@ -7,7 +7,8 @@
 <meta name="description" content="Sudoku moderno e animado, puzzles com solução única, notas, dicas e um leaderboard local, bilingue PT/EN.">
 <meta name="theme-color" content="#0a0a0f">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%230a0a0f%22/><rect x=%2222%22 y=%2222%22 width=%2256%22 height=%2256%22 rx=%228%22 fill=%22none%22 stroke=%22%23f99c00%22 stroke-width=%226%22/><path d=%22M22 41h56M22 59h56M41 22v56M59 22v56%22 stroke=%22%23f99c00%22 stroke-width=%223%22/></svg>">
-<link rel="stylesheet" href="css/style.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/board.css?v=7">
 </head>
 <body>
 <div id="app">
@@ -175,6 +176,9 @@
       </div>
 
       <div class="game-actions">
+        <button id="btn-sound" class="icon-btn" aria-pressed="true" data-tip-i18n="sound" data-i18n-label="sound">
+          <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path class="sound-waves" d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/><path class="sound-off" d="M16 9l6 6M22 9l-6 6"/></svg>
+        </button>
         <button id="btn-restart" class="icon-btn" data-tip-i18n="newGame" data-i18n-label="newGame">
           <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v6h6"/></svg>
         </button>
@@ -186,6 +190,7 @@
     </div>
 
     <div class="control-panel">
+      <p id="hint-explain" class="hint-explain hidden" role="status" aria-live="polite"></p>
       <div class="action-row">
         <button id="btn-notes" aria-pressed="false" class="action-btn" data-i18n-label="notes">
           <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -261,11 +266,14 @@
   <div id="toast" role="status" aria-live="polite" class="toast hidden"></div>
 </div>
 
-<script src="js/i18n.js?v=6"></script>
-<script src="js/solver.js?v=6"></script>
-<script src="js/challenge.js?v=6"></script>
-<script src="js/generator.js?v=6"></script>
-<script src="js/engine.js?v=6"></script>
-<script src="js/ui.js?v=6"></script>
+<script src="js/i18n.js?v=7"></script>
+<script src="js/solver.js?v=7"></script>
+<script src="js/challenge.js?v=7"></script>
+<script src="js/generator.js?v=7"></script>
+<script src="js/engine.js?v=7"></script>
+<script src="js/sound.js?v=7"></script>
+<script src="js/storage.js?v=7"></script>
+<script src="js/overlays.js?v=7"></script>
+<script src="js/ui.js?v=7"></script>
 </body>
 </html>

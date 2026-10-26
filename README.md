@@ -14,7 +14,10 @@ The interface opens with a short animated intro, and is fully bilingual, switchi
 - ✅ Uniquely-solvable puzzles — clues are removed one at a time, keeping each removal only if the puzzle still solves to exactly one grid
 - ✏️ Pencil-mark notes mode — jot down candidate digits in a cell instead of committing a final value
 - 🚫 Live conflict detection — placing a digit that already exists in the same row, column or 3x3 box highlights every conflicting cell
-- 💡 Limited hints per game (3/4/5 by difficulty) that reveal the correct value for the selected cell — or a random incorrect one if nothing's selected — and ↩️ undo for the last 200 moves including after resuming a saved game
+- 💡 Teaching hints (3/4/5 per game by difficulty): a hint fixes a wrong digit first; otherwise it fills a cell through the simplest deduction available — a digit with only one possible cell in a box, row or column, or a cell with only one possible digit — highlights the unit and explains the reasoning in a sentence. Only when no simple deduction exists does it reveal the answer, and says so
+- 🧠 Easy and Medium puzzles are guaranteed solvable with those deductions alone — no guessing needed
+- ↩️ Undo for the last 200 moves, including after resuming a saved game
+- 🔊 Short synthesized sounds (Web Audio, no audio files) with an on/off toggle in the game header, remembered between visits
 - 🎬 Smooth animations — pop-in on digit entry and hints, shake on conflicts, a confetti burst on winning
 - ⌨️ Full keyboard support — digits 1-9 to fill, Backspace/Delete to erase, arrow keys to move the selection, N to toggle notes, Ctrl/⌘+Z to undo
 - 💾 Autosaves mid-game to `localStorage`, with a "Continue Game" option from the main menu
@@ -35,13 +38,19 @@ The interface opens with a short animated intro, and is fully bilingual, switchi
 SudokuWeb/
 ├── index.html         # Splash, menu, how-to-play, game screen, modals
 ├── css/
-│   └── style.css       # Theme tokens, layout, grid/cell styles, animations
+│   ├── style.css       # Theme tokens, base, splash, menu, how-to-play, game header
+│   └── board.css       # Grid, controls, modals, challenges, responsive (loaded after style.css)
 ├── js/
-│   ├── i18n.js          # PT/EN strings and language persistence
-│   ├── solver.js         # MRV backtracking solver, capped solution counter, conflict scan
-│   ├── generator.js       # Randomized full-grid fill + hole digging with uniqueness checks
-│   ├── engine.js           # Board state, dispatch results, undo stack, hints, snapshots
-│   └── ui.js                # Rendering, screen navigation, keyboard input, save/leaderboard
+│   ├── i18n.js         # PT/EN strings and language persistence
+│   ├── solver.js       # Bitmask MRV solution counter, conflict scan, singles (hint techniques)
+│   ├── challenge.js    # Endless challenge ladder, stars and level picker
+│   ├── generator.js    # Randomized full-grid fill + hole digging with uniqueness checks
+│   ├── engine.js       # Board state, dispatch results, undo stack, teaching hints, snapshots
+│   ├── sound.js        # Web Audio UI sounds and the on/off preference
+│   ├── storage.js      # Saved game, menu difficulty and leaderboard persistence
+│   ├── overlays.js     # Splash, modals, toast, win screens and confetti
+│   └── ui.js           # Rendering, screen navigation, keyboard input, wiring
+├── tests/              # Node regression suites (node tests/game.test.js)
 ├── LICENSE
 └── README.md
 ```
@@ -60,7 +69,8 @@ SudokuWeb/
      - otherwise put the digit back
    stop once the difficulty's target clue count is reached; a dig that
    gets stuck above the target is retried (up to 12 times) and the
-   sparsest puzzle is kept
+   sparsest puzzle is kept. Puzzles with 32+ clues (Easy, Medium and the
+   matching challenge levels) must also stay solvable with singles only
 
 3. The uniqueness check is a bitmask MRV (minimum-remaining-values)
    backtracker: row/column/box digits live in 9-bit masks and the search
@@ -71,9 +81,11 @@ SudokuWeb/
 
 ### Hints & conflicts
 ```
-Hint: reveals solution[selectedCell] if that cell is empty or wrong;
-      otherwise picks a random cell that still needs fixing. Capped
-      per game by difficulty (Easy 3 / Medium 4 / Hard 5).
+Hint: for the selected cell (if empty or wrong), else for any wrong
+      entry, else for the easiest single on the board (box, then row,
+      column, then naked single) — reasoning only from correct digits.
+      Reveals the value plus a one-sentence explanation. Capped per game
+      by difficulty (Easy 3 / Medium 4 / Hard 5).
 
 Conflicts: recomputed from scratch after every move — for each row,
       column and 3x3 box, any digit appearing more than once flags

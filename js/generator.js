@@ -1,6 +1,8 @@
 /* Generates uniquely-solvable puzzles: fill an empty grid completely via randomized backtracking,
    then dig holes in shuffled cell order, keeping each removal only while the puzzle still has
-   exactly one solution (checked via countSolutions capped at 2). */
+   exactly one solution (checked via countSolutions capped at 2). Puzzles with at least
+   SINGLES_ONLY_MIN_CLUES clues (Easy, Medium and the matching challenge levels) must also stay
+   solvable with singles alone, so they never need guessing and every hint has a deduction. */
 
 const DIFFICULTIES = {
   easy: { minClues: 40, maxHints: 3 },
@@ -35,7 +37,10 @@ function fillGrid(grid, index) {
 
 /* Digs a full solution towards targetClues cells (uniqueness may require more) while preserving a unique solution.
    Returns { given: Array(81), solution: Array(81) }. */
+const SINGLES_ONLY_MIN_CLUES = 32;
+
 function digOnce(targetClues) {
+  const singlesOnly = targetClues >= SINGLES_ONLY_MIN_CLUES;
   const solution = new Array(81).fill(0);
   fillGrid(solution, 0);
 
@@ -48,8 +53,7 @@ function digOnce(targetClues) {
     const backup = puzzle[idx];
     puzzle[idx] = 0;
 
-    const solutions = countSolutions(puzzle, 2);
-    if (solutions === 1) {
+    if (singlesOnly ? solvesWithSingles(puzzle) : countSolutions(puzzle, 2) === 1) {
       clues--;
     } else {
       puzzle[idx] = backup;
