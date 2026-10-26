@@ -5,8 +5,8 @@
 class SudokuGame {
   constructor(opts) {
     this.difficulty = opts.difficulty; // 'easy' | 'medium' | 'hard'
-    this.givenMask = opts.givenMask; // Array(81) boolean
-    this.solution = opts.solution; // Array(81) 1-9
+    this.givenMask = opts.givenMask.slice(); // Array(81) boolean
+    this.solution = opts.solution.slice(); // Array(81) 1-9
     this.values = opts.values.slice(); // Array(81) 0-9
     this.notes = opts.notes.map((s) => new Set(s)); // Array(81) Set<number>
     this.selectedIndex = opts.selectedIndex ?? null;
@@ -17,7 +17,12 @@ class SudokuGame {
     this.challengeLevel = opts.challengeLevel ?? null; // null = classic mode
     this.elapsedMilliseconds = (opts.elapsedSeconds ?? 0) * 1000;
     this.runningSince = performance.now();
-    this.undoStack = [];
+    this.undoStack = (opts.undoStack ?? []).map(entry => ({
+      index: entry.index,
+      prevValue: entry.prevValue,
+      prevNotes: new Set(entry.prevNotes),
+      peerNotes: entry.peerNotes.map(peer => ({ index: peer.index, notes: new Set(peer.notes) })),
+    }));
   }
 
   static newGame(difficultyKey) {
@@ -47,6 +52,11 @@ class SudokuGame {
 
   get isChallenge() { return this.challengeLevel !== null; }
 
+  static arePeers(a, b) {
+    return a !== b && (Math.floor(a / 9) === Math.floor(b / 9) || a % 9 === b % 9
+      || (Math.floor(a / 27) === Math.floor(b / 27) && Math.floor((a % 9) / 3) === Math.floor((b % 9) / 3)));
+  }
+
   static isValidSnapshot(snap) {
     if (!snap || typeof snap !== 'object') return false;
     const ints = (xs, min, max) => Array.isArray(xs) && xs.length === 81 && xs.every(v => Number.isInteger(v) && v >= min && v <= max);
@@ -59,6 +69,13 @@ class SudokuGame {
     if (findConflictIndices(snap.solution).size || snap.given.some((v, i) => v && snap.values[i] !== snap.solution[i])) return false;
     if (!Array.isArray(snap.notes) || snap.notes.length !== 81 || !snap.notes.every(xs => Array.isArray(xs) && xs.every(v => Number.isInteger(v) && v >= 1 && v <= 9))) return false;
     if (snap.selectedIndex != null && (!Number.isInteger(snap.selectedIndex) || snap.selectedIndex < 0 || snap.selectedIndex > 80)) return false;
+    const validNotes = xs => Array.isArray(xs) && xs.length <= 9 && xs.every(v => Number.isInteger(v) && v >= 1 && v <= 9);
+    const editable = i => Number.isInteger(i) && i >= 0 && i < 81 && snap.given[i] === 0;
+    if (snap.undoStack != null && (!Array.isArray(snap.undoStack) || snap.undoStack.length > 200 || !snap.undoStack.every(entry =>
+      entry && editable(entry.index) && (entry.prevValue === null || (Number.isInteger(entry.prevValue) && entry.prevValue >= 1 && entry.prevValue <= 9))
+      && validNotes(entry.prevNotes) && Array.isArray(entry.peerNotes) && entry.peerNotes.length <= 20
+      && new Set(entry.peerNotes.map(peer => peer?.index)).size === entry.peerNotes.length
+      && entry.peerNotes.every(peer => peer && editable(peer.index) && SudokuGame.arePeers(entry.index, peer.index) && validNotes(peer.notes))))) return false;
     const budget = level === null ? DIFFICULTIES[snap.difficulty].maxHints : maxHintsForLevel(level);
     return typeof snap.notesMode === 'boolean' && nonnegative(snap.moves) && nonnegative(snap.hintsUsed)
       && snap.hintsUsed <= budget && nonnegative(snap.wrongMoves ?? 0)
@@ -68,7 +85,7 @@ class SudokuGame {
   static fromSnapshot(snap) {
     if (!SudokuGame.isValidSnapshot(snap)) throw new Error('Invalid Sudoku save');
     const givenMask = snap.given.map((v) => v !== 0);
-    const game = new SudokuGame({
+    return new SudokuGame({
       difficulty: snap.difficulty,
       givenMask,
       solution: snap.solution,
@@ -81,8 +98,8 @@ class SudokuGame {
       wrongMoves: snap.wrongMoves,
       challengeLevel: snap.challengeLevel ?? null,
       elapsedSeconds: snap.elapsedSeconds,
+      undoStack: snap.undoStack,
     });
-    return game;
   }
 
   get maxHints() {
@@ -110,7 +127,6 @@ class SudokuGame {
     const out = [];
     for (let idx = 0; idx < 81; idx++) {
       out.push({
-        index: idx,
         row: Math.floor(idx / 9),
         col: idx % 9,
         boxIndex: Math.floor(Math.floor(idx / 9) / 3) * 3 + Math.floor((idx % 9) / 3),
@@ -135,6 +151,7 @@ class SudokuGame {
   }
 
   enterDigit(digit) {
+    if (this.isWon) return { type: 'ignored' };
     const index = this.selectedIndex;
     if (index === null || index === undefined) return { type: 'ignored' };
     if (this.givenMask[index]) return { type: 'ignored' };
@@ -150,7 +167,7 @@ class SudokuGame {
     }
 
     if (this.values[index] === digit) return { type: 'ignored' };
-    this.pushUndo(index);
+    this.pushUndo(index, digit);
     this.values[index] = digit;
     this.notes[index].clear();
     this.moves++;
@@ -160,6 +177,7 @@ class SudokuGame {
   }
 
   clearCell() {
+    if (this.isWon) return { type: 'ignored' };
     const index = this.selectedIndex;
     if (index === null || index === undefined) return { type: 'ignored' };
     if (this.givenMask[index]) return { type: 'ignored' };
@@ -172,12 +190,13 @@ class SudokuGame {
   }
 
   undo() {
+    if (this.isWon) return { type: 'ignored' };
     const entry = this.undoStack.pop();
     if (!entry) return { type: 'ignored' };
     this.values[entry.index] = entry.prevValue ?? 0;
     this.notes[entry.index] = new Set(entry.prevNotes);
     this.selectedIndex = entry.index;
-    if (entry.wasHint && this.hintsUsed > 0) this.hintsUsed--;
+    entry.peerNotes.forEach(peer => { this.notes[peer.index] = new Set(peer.notes); });
     return { type: 'undone' };
   }
 
@@ -186,6 +205,7 @@ class SudokuGame {
   }
 
   hint() {
+    if (this.isWon) return { type: 'ignored' };
     if (this.hintsUsed >= this.maxHints) return { type: 'hintExhausted' };
 
     const selected = this.selectedIndex;
@@ -201,7 +221,7 @@ class SudokuGame {
       target = candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    this.pushUndo(target, true);
+    this.pushUndo(target, this.solution[target]);
     this.values[target] = this.solution[target];
     this.notes[target].clear();
     this.hintsUsed++;
@@ -211,12 +231,21 @@ class SudokuGame {
     return this.isWon ? { type: 'won' } : { type: 'hintRevealed', index: target, digit: this.solution[target] };
   }
 
-  pushUndo(index, wasHint = false) {
+  pushUndo(index, digit = null) {
+    const peerNotes = [];
+    if (digit !== null) {
+      for (let peer = 0; peer < 81; peer++) {
+        if (!this.givenMask[peer] && SudokuGame.arePeers(index, peer) && this.notes[peer].has(digit)) {
+          peerNotes.push({ index: peer, notes: new Set(this.notes[peer]) });
+          this.notes[peer].delete(digit);
+        }
+      }
+    }
     this.undoStack.push({
       index,
       prevValue: this.values[index] || null,
       prevNotes: new Set(this.notes[index]),
-      wasHint,
+      peerNotes,
     });
     if (this.undoStack.length > 200) this.undoStack.shift();
   }
@@ -235,6 +264,8 @@ class SudokuGame {
       wrongMoves: this.wrongMoves,
       challengeLevel: this.challengeLevel,
       elapsedSeconds: this.elapsedSeconds,
+      undoStack: this.undoStack.map(entry => ({ index: entry.index, prevValue: entry.prevValue,
+        prevNotes: [...entry.prevNotes], peerNotes: entry.peerNotes.map(peer => ({ index: peer.index, notes: [...peer.notes] })) })),
     };
   }
 }

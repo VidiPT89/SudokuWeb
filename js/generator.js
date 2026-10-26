@@ -46,11 +46,9 @@ function digPuzzle(targetClues) {
   for (const idx of order) {
     if (clues <= targetClues) break;
     const backup = puzzle[idx];
-    if (backup === 0) continue;
     puzzle[idx] = 0;
 
-    const trial = puzzle.slice();
-    const solutions = countSolutions(trial, 2);
+    const solutions = countSolutions(puzzle, 2);
     if (solutions === 1) {
       clues--;
     } else {

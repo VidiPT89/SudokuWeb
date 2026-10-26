@@ -64,7 +64,8 @@ function applyLang() {
     opt.classList.toggle('active', opt.getAttribute('data-lang-opt') === currentLang);
   });
 
-  if (game) refreshHintBadge();
+  if (game) { refreshHintBadge(); refreshBoard(); }
+  if (!el('levels-screen').classList.contains('hidden')) renderLevels(startChallenge);
 }
 
 function setLang(lang) {
@@ -237,7 +238,6 @@ function startNewGame(difficultyKey) {
   renderBoard();
   refreshBoard();
   updateStats();
-  refreshHintBadge();
   el('btn-notes').classList.remove('active');
   startTimer();
   saveGame();
@@ -250,7 +250,6 @@ function startChallenge(level) {
   renderBoard();
   refreshBoard();
   updateStats();
-  refreshHintBadge();
   el('btn-notes').classList.remove('active');
   startTimer();
   saveGame();
@@ -264,7 +263,6 @@ function resumeGame() {
   renderBoard();
   refreshBoard();
   updateStats();
-  refreshHintBadge();
   el('btn-notes').classList.toggle('active', game.notesMode);
   startTimer();
 }
@@ -291,7 +289,6 @@ function handleResult(result) {
     case 'undone':
       refreshBoard();
       updateStats();
-      refreshHintBadge();
       saveGame();
       break;
 
@@ -299,7 +296,6 @@ function handleResult(result) {
       refreshBoard();
       pulse(result.index, 'pop-in');
       updateStats();
-      refreshHintBadge();
       saveGame();
       break;
 
@@ -390,6 +386,8 @@ function startTimer() {
 function stopTimer() { game?.pause(); if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
 
 function updateStats() {
+  el('stat-mistakes-wrap').classList.toggle('hidden', !game.isChallenge);
+  el('stat-mistakes').textContent = game.wrongMoves;
   el('stat-time').textContent = formatTime(game.elapsedSeconds);
   const moves = game.moves;
   if (moves !== lastMovesShown) {
@@ -492,7 +490,7 @@ function onWinChallenge() {
   el('btn-win-menu').classList.add('hidden');
 
   openModal('modal-win');
-  animateWinStars(outcome.bestStars);
+  animateWinStars(stars);
   launchConfetti();
 }
 

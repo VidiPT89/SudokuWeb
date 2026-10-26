@@ -108,11 +108,8 @@ function recordChallengeWin(level, elapsedSeconds, stars) {
   saveChallengeProgress(progress);
 
   return {
-    improvedStars,
     isNewBestTime,
     unlockedNext,
-    bestStars: Math.max(stars, prevStars),
-    bestTime: progress.bestTime[key],
   };
 }
 
