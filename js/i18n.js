@@ -3,6 +3,7 @@
 const I18N = {
   pt: {
     metaTitle: 'SudokuWeb: Puzzle de Lógica',
+    row: 'Linha', column: 'Coluna', emptyCell: 'vazia', fixedCell: 'fixa', conflictCell: 'em conflito',
     tapToContinue: 'Toque para continuar',
     developedBy: 'Desenvolvido por',
 
@@ -79,6 +80,7 @@ const I18N = {
   },
 
   en: {
+    row: 'Row', column: 'Column', emptyCell: 'empty', fixedCell: 'given', conflictCell: 'conflicting',
     metaTitle: 'SudokuWeb: Logic Puzzle',
     tapToContinue: 'Tap to continue',
     developedBy: 'Developed by',
@@ -161,7 +163,7 @@ const DEFAULT_LANG = 'pt';
 function getStoredLang() {
   try {
     const stored = localStorage.getItem('sudokuweb-lang');
-    if (stored && I18N[stored]) return stored;
+    if (stored && Object.prototype.hasOwnProperty.call(I18N, stored)) return stored;
   } catch (e) { /* localStorage unavailable */ }
   return DEFAULT_LANG;
 }

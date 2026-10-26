@@ -15,7 +15,8 @@ class SudokuGame {
     this.hintsUsed = opts.hintsUsed ?? 0;
     this.wrongMoves = opts.wrongMoves ?? 0;
     this.challengeLevel = opts.challengeLevel ?? null; // null = classic mode
-    this.startedAt = Date.now() - (opts.elapsedSeconds ?? 0) * 1000;
+    this.elapsedMilliseconds = (opts.elapsedSeconds ?? 0) * 1000;
+    this.runningSince = performance.now();
     this.undoStack = [];
   }
 
@@ -46,7 +47,26 @@ class SudokuGame {
 
   get isChallenge() { return this.challengeLevel !== null; }
 
+  static isValidSnapshot(snap) {
+    if (!snap || typeof snap !== 'object') return false;
+    const ints = (xs, min, max) => Array.isArray(xs) && xs.length === 81 && xs.every(v => Number.isInteger(v) && v >= min && v <= max);
+    const nonnegative = n => Number.isSafeInteger(n) && n >= 0;
+    const level = snap.challengeLevel ?? null;
+    if (level !== null && (!Number.isSafeInteger(level) || level < 1 || level > Number.MAX_SAFE_INTEGER - 100)) return false;
+    if (!['easy', 'medium', 'hard', ...(level !== null ? ['expert'] : [])].includes(snap.difficulty)) return false;
+    if (level !== null && snap.difficulty !== bandForLevel(level)) return false;
+    if (!ints(snap.given, 0, 1) || !ints(snap.solution, 1, 9) || !ints(snap.values, 0, 9)) return false;
+    if (findConflictIndices(snap.solution).size || snap.given.some((v, i) => v && snap.values[i] !== snap.solution[i])) return false;
+    if (!Array.isArray(snap.notes) || snap.notes.length !== 81 || !snap.notes.every(xs => Array.isArray(xs) && xs.every(v => Number.isInteger(v) && v >= 1 && v <= 9))) return false;
+    if (snap.selectedIndex != null && (!Number.isInteger(snap.selectedIndex) || snap.selectedIndex < 0 || snap.selectedIndex > 80)) return false;
+    const budget = level === null ? DIFFICULTIES[snap.difficulty].maxHints : maxHintsForLevel(level);
+    return typeof snap.notesMode === 'boolean' && nonnegative(snap.moves) && nonnegative(snap.hintsUsed)
+      && snap.hintsUsed <= budget && nonnegative(snap.wrongMoves ?? 0)
+      && Number.isFinite(snap.elapsedSeconds) && snap.elapsedSeconds >= 0 && snap.elapsedSeconds <= Number.MAX_SAFE_INTEGER / 1000;
+  }
+
   static fromSnapshot(snap) {
+    if (!SudokuGame.isValidSnapshot(snap)) throw new Error('Invalid Sudoku save');
     const givenMask = snap.given.map((v) => v !== 0);
     const game = new SudokuGame({
       difficulty: snap.difficulty,
@@ -71,7 +91,19 @@ class SudokuGame {
   }
   get hintsRemaining() { return this.maxHints - this.hintsUsed; }
   get canUndo() { return this.undoStack.length > 0; }
-  get elapsedSeconds() { return Math.floor((Date.now() - this.startedAt) / 1000); }
+  get elapsedSeconds() {
+    return Math.floor((this.elapsedMilliseconds + (this.runningSince === null ? 0 : Math.max(0, performance.now() - this.runningSince))) / 1000);
+  }
+
+  pause() {
+    if (this.runningSince === null) return;
+    this.elapsedMilliseconds += Math.max(0, performance.now() - this.runningSince);
+    this.runningSince = null;
+  }
+
+  resume() {
+    if (this.runningSince === null && !this.isWon) this.runningSince = performance.now();
+  }
 
   cells() {
     const conflicts = findConflictIndices(this.values);
@@ -97,7 +129,7 @@ class SudokuGame {
   }
 
   selectCell(index) {
-    if (index < 0 || index > 80) return { type: 'ignored' };
+    if (!Number.isInteger(index) || index < 0 || index > 80) return { type: 'ignored' };
     this.selectedIndex = index;
     return { type: 'cellSelected', index };
   }
@@ -106,9 +138,10 @@ class SudokuGame {
     const index = this.selectedIndex;
     if (index === null || index === undefined) return { type: 'ignored' };
     if (this.givenMask[index]) return { type: 'ignored' };
-    if (digit < 1 || digit > 9) return { type: 'ignored' };
+    if (!Number.isInteger(digit) || digit < 1 || digit > 9) return { type: 'ignored' };
 
     if (this.notesMode) {
+      if (this.values[index] !== 0) return { type: 'ignored' };
       const had = this.notes[index].has(digit);
       this.pushUndo(index);
       if (had) this.notes[index].delete(digit); else this.notes[index].add(digit);
@@ -122,6 +155,7 @@ class SudokuGame {
     this.notes[index].clear();
     this.moves++;
     if (digit !== this.solution[index]) this.wrongMoves++;
+    if (this.isWon) this.pause();
     return this.isWon ? { type: 'won' } : { type: 'digitEntered', index, digit };
   }
 
@@ -173,6 +207,7 @@ class SudokuGame {
     this.hintsUsed++;
     this.moves++;
     this.selectedIndex = target;
+    if (this.isWon) this.pause();
     return this.isWon ? { type: 'won' } : { type: 'hintRevealed', index: target, digit: this.solution[target] };
   }
 

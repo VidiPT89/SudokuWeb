@@ -349,6 +349,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 }
 
 .cell {
+  border: 0; padding: 0; min-width: 0;
   position: relative;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-panel-2);
@@ -643,3 +644,5 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   60% { transform: scale(1.35) rotate(6deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); opacity: 1; }
 }
+
+.cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; z-index: 1; }

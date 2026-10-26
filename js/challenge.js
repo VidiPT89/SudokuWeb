@@ -67,11 +67,14 @@ function loadChallengeProgress() {
   try {
     const raw = localStorage.getItem(CHALLENGE_KEY);
     const data = raw ? JSON.parse(raw) : null;
-    if (!data || typeof data !== 'object') return emptyProgress();
+    if (!data || typeof data !== 'object' || !Number.isSafeInteger(data.highestUnlocked)
+        || data.highestUnlocked < 1 || data.highestUnlocked > Number.MAX_SAFE_INTEGER - 100) return emptyProgress();
+    const cleanMap = (entries, valid) => Object.fromEntries(Object.entries(entries && typeof entries === 'object' ? entries : {})
+      .filter(([key, value]) => Number.isSafeInteger(Number(key)) && Number(key) >= 1 && Number(key) < data.highestUnlocked && valid(value)));
     return {
       highestUnlocked: Math.max(1, Math.floor(Number(data.highestUnlocked)) || 1),
-      stars: (data.stars && typeof data.stars === 'object') ? data.stars : {},
-      bestTime: (data.bestTime && typeof data.bestTime === 'object') ? data.bestTime : {},
+      stars: cleanMap(data.stars, v => Number.isInteger(v) && v >= 1 && v <= 3),
+      bestTime: cleanMap(data.bestTime, v => Number.isFinite(v) && v >= 0),
     };
   } catch (e) {
     return emptyProgress();

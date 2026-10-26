@@ -38,6 +38,12 @@ function findMrvCell(grid) {
 /* Counts solutions up to `cap`, stopping early once reached. Used to verify a puzzle has
    exactly one solution (cap = 2). Mutates `grid` in place but restores it before returning. */
 function countSolutions(grid, cap = 2) {
+  if (!Array.isArray(grid) || grid.length !== 81 || !grid.every(v => Number.isInteger(v) && v >= 0 && v <= 9)
+      || !Number.isInteger(cap) || cap <= 0 || findConflictIndices(grid).size) return 0;
+  return searchSolutions(grid, cap);
+}
+
+function searchSolutions(grid, cap) {
   const cell = findMrvCell(grid);
   if (!cell) return 1;
   const { index, candidates } = cell;
@@ -45,7 +51,7 @@ function countSolutions(grid, cap = 2) {
   let found = 0;
   for (const digit of candidates) {
     grid[index] = digit;
-    found += countSolutions(grid, cap - found);
+    found += searchSolutions(grid, cap - found);
     grid[index] = 0;
     if (found >= cap) break;
   }
