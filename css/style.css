@@ -3,32 +3,32 @@
    ====================================================================== */
 
 :root {
-  --bg: #0a0a0f;
-  --bg-panel: #0d0d18;
-  --bg-panel-2: #12121f;
-  --border: rgba(226, 232, 240, 0.10);
-  --border-strong: rgba(226, 232, 240, 0.18);
-  --text: #e2e8f0;
-  --text-dim: #94a3b8;
-  --text-faint: #5b6474;
-  --accent: #f99c00;
-  --accent-light: #fcbb00;
-  --accent-dark: #dd7400;
-  --accent-glow: rgba(249, 156, 0, 0.35);
-  --danger: #ef4444;
+  --bg: #141716;
+  --bg-panel: #191d1b;
+  --bg-panel-2: #202622;
+  --border: rgba(225, 235, 222, 0.14);
+  --border-strong: rgba(225, 235, 222, 0.38);
+  --text: #f0f1e9;
+  --text-dim: #b4bcb3;
+  --text-faint: #8d998f;
+  --accent: #e8b86d;
+  --accent-light: #f5ce90;
+  --accent-dark: #c99548;
+  --accent-glow: rgba(232, 184, 109, 0.12);
+  --danger: #ff8c87;
   --ok: #22c55e;
 
-  --given-digit: #e2e8f0;
-  --user-digit: #fcbb00;
-  --selected-cell-bg: rgba(249, 156, 0, 0.20);
-  --peer-highlight-bg: rgba(249, 156, 0, 0.09);
-  --same-number-bg: rgba(252, 187, 0, 0.13);
-  --conflict-bg: rgba(239, 68, 68, 0.16);
-  --conflict-text: #ef4444;
-  --note-text: #5b6474;
+  --given-digit: #f0f1e9;
+  --user-digit: #f5ce90;
+  --selected-cell-bg: #55472f;
+  --peer-highlight-bg: #28332b;
+  --same-number-bg: #414332;
+  --conflict-bg: #492e2b;
+  --conflict-text: #ff8c87;
+  --note-text: #b4bcb3;
 
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-body: Arial, Helvetica, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   --radius: 10px;
   --ease: cubic-bezier(.22, 1, .36, 1);
@@ -56,8 +56,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .bg-glow {
   position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(600px 400px at 15% 10%, rgba(249, 156, 0, 0.10), transparent 60%),
-    radial-gradient(500px 500px at 85% 90%, rgba(59, 130, 246, 0.06), transparent 60%);
+    radial-gradient(600px 400px at 15% 10%, rgba(232, 184, 109, 0.06), transparent 60%),
+    radial-gradient(500px 500px at 85% 90%, rgba(232, 184, 109, 0.025), transparent 60%);
 }
 
 .screen {
@@ -175,7 +175,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .menu-screen {
   justify-content: safe center;
   overflow-y: auto;
-  animation: fadeIn .5s var(--ease);
+
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -187,7 +187,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   font-family: var(--font-mono); font-size: .78rem; font-weight: 700;
 }
 .lang-opt { position: relative; z-index: 1; padding: .4rem .75rem; color: var(--text-faint); transition: color .25s; }
-.lang-opt.active { color: #0a0a0f; }
+.lang-opt.active { color: #141716; }
 .lang-pill {
   position: absolute; top: 3px; left: 3px; height: calc(100% - 6px); width: calc(50% - 3px);
   background: var(--accent); border-radius: 999px;
@@ -231,7 +231,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .menu-buttons { display: flex; flex-direction: column; gap: .8rem; margin-top: 1.6rem; width: min(320px, 80vw); }
 
 .btn {
-  font-family: var(--font-mono); font-weight: 700; font-size: .92rem;
+  font-family: var(--font-body); font-weight: 600; font-size: .96rem;
   padding: .85rem 1.6rem; border-radius: 10px; cursor: pointer;
   border: 1px solid transparent; letter-spacing: .02em;
   display: flex; align-items: center; justify-content: center; text-decoration: none;
@@ -258,7 +258,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
    How to play
    ====================================================================== */
 
-.htp-screen { animation: fadeIn .35s var(--ease); align-items: stretch; }
+.htp-screen { align-items: stretch; }
 .sub-header {
   display: flex; align-items: center; gap: 1rem;
   padding: 1.1rem 1.2rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
@@ -297,7 +297,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
    Game screen
    ====================================================================== */
 
-.game-screen { animation: fadeIn .35s var(--ease); overflow-y: auto; }
+.game-screen { overflow-y: auto; }
 
 .game-header {
   width: 100%; flex-shrink: 0;
@@ -340,8 +340,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   display: grid;
   grid-template-columns: repeat(9, 1fr);
   grid-template-rows: repeat(9, 1fr);
-  width: min(92vw, max(216px, calc(100vh - 300px)), 460px);
-  width: min(92vw, max(216px, calc(100dvh - 300px)), 460px);
+  width: min(92vw, max(270px, calc(100vh - 250px)), 520px);
+  width: min(92vw, max(270px, calc(100dvh - 250px)), 520px);
   aspect-ratio: 1;
   background: var(--bg-panel);
   border: 2px solid var(--border-strong);
@@ -358,7 +358,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: clamp(1rem, 3.2vh, 1.35rem);
+  font-size: clamp(1.1rem, 3.8vh, 1.65rem);
   font-weight: 600;
   color: var(--user-digit);
   transition: background .12s ease;
@@ -387,11 +387,6 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .cell.pop-in .cell-value { animation: popIn .22s var(--ease); }
 @keyframes popIn { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-/* Board entrance: cells fade and scale in along a quick diagonal wave
-   (--i is set per cell in renderBoard as row + col). */
-.cell.enter { animation: cellIn .32s var(--ease) both; animation-delay: calc(var(--i, 0) * 12ms); }
-@keyframes cellIn { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: scale(1); } }
-
 .cell-notes {
   position: absolute; inset: 0;
   display: grid;
@@ -401,7 +396,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 }
 .cell-notes span {
   display: flex; align-items: center; justify-content: center;
-  font-size: clamp(.5rem, 1.3vh, .62rem);
+  font-size: clamp(.56rem, 1.5vh, .75rem);
   font-weight: 500;
   color: var(--note-text);
   font-family: var(--font-mono);
@@ -420,7 +415,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 .action-row {
   display: flex; gap: .6rem;
-  width: min(92vw, 460px);
+  width: min(92vw, 520px);
 }
 .action-btn {
   flex: 1;
@@ -447,9 +442,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 .number-pad {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(9, 1fr);
   gap: .5rem;
-  width: min(92vw, 460px);
+  width: min(92vw, 520px);
 }
 .num-btn {
   min-height: 44px;
@@ -552,7 +547,6 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  .cell.enter { animation-delay: 0ms !important; }
 }
 
 /* ======================================================================
@@ -560,8 +554,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
    ====================================================================== */
 
 .btn-challenge {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-  color: #14100a; box-shadow: 0 8px 24px var(--accent-glow);
+  background: var(--bg-panel-2); color: var(--text); border-color: var(--border-strong);
 }
 .btn-challenge:hover { filter: brightness(1.08); box-shadow: 0 10px 30px var(--accent-glow); }
 
@@ -597,7 +590,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   background: var(--bg-panel-2); border: 1px solid var(--border);
   border-radius: 12px; color: var(--text); font-family: var(--font-mono);
   transition: transform .15s var(--ease), border-color .2s, box-shadow .2s, background .2s;
-  animation: tileIn .35s var(--ease) both; animation-delay: calc(var(--i, 0) * 22ms);
+
 }
 .level-tile[data-band="easy"]   { --band-color: var(--accent-light); }
 .level-tile[data-band="medium"] { --band-color: var(--accent); }
@@ -611,7 +604,6 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .level-tile.current {
   border-color: var(--band-color);
   box-shadow: 0 0 0 1px var(--band-color), 0 8px 22px var(--accent-glow);
-  animation: tileIn .35s var(--ease) both, currentPulse 2.2s ease-in-out infinite 1s;
 }
 .level-tile.locked {
   background: var(--bg-panel); color: var(--text-faint);
@@ -624,12 +616,6 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .tile-stars { display: flex; gap: 1px; }
 .tile-star { font-size: .6rem; color: var(--text-faint); line-height: 1; }
 .tile-star.earned { color: var(--band-color); }
-
-@keyframes tileIn { from { opacity: 0; transform: translateY(10px) scale(.9); } to { opacity: 1; transform: none; } }
-@keyframes currentPulse {
-  0%, 100% { box-shadow: 0 0 0 1px var(--band-color), 0 8px 22px var(--accent-glow); }
-  50% { box-shadow: 0 0 0 2px var(--band-color), 0 8px 30px var(--accent-glow); }
-}
 
 /* Win modal stars */
 .win-stars { display: flex; justify-content: center; gap: .6rem; margin: .2rem 0 .4rem; }
@@ -646,3 +632,33 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 }
 
 .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; z-index: 1; }
+
+/* Quiet surfaces, clear state hierarchy and touch-sized controls. */
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 4px; }
+.game-header { max-width: 600px; background: transparent; padding-top: 1rem; }
+.stat-label { color: var(--text-dim); font-size: .68rem; letter-spacing: .03em; }
+.stat-value { font-weight: 500; }
+.icon-btn { min-width: 44px; min-height: 44px; justify-content: center; }
+.sudoku-board { box-shadow: 0 16px 48px rgba(8, 15, 10, .25); }
+.cell.selected { box-shadow: inset 0 0 0 2px var(--accent-light); z-index: 1; }
+.cell.same-number .cell-value { text-decoration: underline; text-underline-offset: .18em; }
+.cell.conflict::after { content: ''; position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--danger); }
+.action-btn { text-transform: none; font: 500 .8rem var(--font-body); min-height: 56px; background: transparent; border-color: transparent; }
+.action-btn.active { background: var(--selected-cell-bg); color: var(--accent-light); border-color: var(--accent); }
+.action-btn.active::after { content: ''; width: 4px; height: 4px; border-radius: 50%; background: currentColor; position: absolute; bottom: 3px; }
+.num-btn { min-height: 52px; font-weight: 500; border-radius: 8px; }
+.number-pad.notes-mode .num-btn { color: var(--accent-light); border-style: dashed; }
+.menu-content { width: min(88vw, 380px); }
+.menu-buttons { width: 100%; }
+.menu-subtitle { font-family: var(--font-body); line-height: 1.6; text-wrap: balance; }
+.difficulty-option { min-height: 44px; font-family: var(--font-body); font-weight: 500; }
+.level-tile.current { box-shadow: inset 0 0 0 1px var(--accent); }
+.modal h2 { font-family: var(--font-body); font-size: 1.65rem; letter-spacing: -.035em; }
+@media (max-width: 480px) {
+  .number-pad { grid-template-columns: repeat(5, 1fr); }
+  .sudoku-board { width: min(92vw, max(270px, calc(100dvh - 310px)), 520px); }
+  .game-stats { gap: 1rem; }
+}
+
+.menu-screen .app-footer { position: static; flex-shrink: 0; padding: 0 1rem 1.2rem; line-height: 1.6; }
+.menu-screen .menu-content { margin-bottom: 1.5rem; }
