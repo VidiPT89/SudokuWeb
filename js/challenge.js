@@ -183,7 +183,6 @@ function renderLevels(onPick) {
   let currentTile = null;
   for (let level = start; level <= end; level++) {
     const tile = buildLevelTile(level, progress, dict);
-    tile.style.setProperty('--i', String(Math.min(level - start, 40)));
     if (!tile.disabled) tile.addEventListener('click', () => onPick(level));
     if (level === progress.highestUnlocked) currentTile = tile;
     grid.appendChild(tile);

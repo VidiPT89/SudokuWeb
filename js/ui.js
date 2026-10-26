@@ -131,9 +131,6 @@ function renderBoard() {
     const div = document.createElement('button');
     div.type = 'button';
     div.className = 'cell';
-    div.style.setProperty('--i', String(row + col));
-    div.classList.add('enter');
-    div.addEventListener('animationend', () => div.classList.remove('enter'), { once: true });
     if (col === 2 || col === 5) div.classList.add('thick-right');
     if (row === 2 || row === 5) div.classList.add('thick-bottom');
     div.addEventListener('click', () => handleResult(game.selectCell(idx)));
@@ -198,7 +195,6 @@ function pulse(index, className) {
   div.classList.remove(className);
   void div.offsetWidth;
   div.classList.add(className);
-  div.addEventListener('animationend', () => div.classList.remove(className), { once: true });
 }
 
 /* ---------------------------------------------------------------------
@@ -239,6 +235,8 @@ function startNewGame(difficultyKey) {
   refreshBoard();
   updateStats();
   el('btn-notes').classList.remove('active');
+  el('btn-notes').setAttribute('aria-pressed', 'false');
+  el('number-pad').classList.remove('notes-mode');
   startTimer();
   saveGame();
 }
@@ -251,6 +249,8 @@ function startChallenge(level) {
   refreshBoard();
   updateStats();
   el('btn-notes').classList.remove('active');
+  el('btn-notes').setAttribute('aria-pressed', 'false');
+  el('number-pad').classList.remove('notes-mode');
   startTimer();
   saveGame();
 }
@@ -264,6 +264,8 @@ function resumeGame() {
   refreshBoard();
   updateStats();
   el('btn-notes').classList.toggle('active', game.notesMode);
+  el('btn-notes').setAttribute('aria-pressed', String(game.notesMode));
+  el('number-pad').classList.toggle('notes-mode', game.notesMode);
   startTimer();
 }
 
@@ -336,6 +338,8 @@ function handleNotesToggle() {
   if (!game) return;
   game.toggleNotesMode();
   el('btn-notes').classList.toggle('active', game.notesMode);
+  el('btn-notes').setAttribute('aria-pressed', String(game.notesMode));
+  el('number-pad').classList.toggle('notes-mode', game.notesMode);
   refreshBoard();
   saveGame();
 }
