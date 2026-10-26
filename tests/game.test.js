@@ -21,7 +21,7 @@ const context = vm.createContext({
   document: { hidden: false, addEventListener() {}, querySelectorAll: () => [], getElementById: node },
   setInterval: () => 1, clearInterval() {}, setTimeout() {}, clearTimeout() {},
 });
-for (const file of ['i18n', 'solver', 'challenge', 'generator', 'engine', 'ui']) {
+for (const file of ['i18n', 'solver', 'challenge', 'generator', 'engine', 'sound', 'storage', 'overlays', 'ui']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', `${file}.js`), 'utf8'), context);
 }
 const run = code => vm.runInContext(code, context);
@@ -143,5 +143,34 @@ check('game.enterDigit(alternate).type', 'ignored');
 check('game.clearCell().type', 'ignored');
 check('game.undo().type', 'ignored');
 check('game.hint().type', 'ignored');
+
+// Pedagogical hints: deductions only, wrong entries first, explanation is transient.
+check('solvesWithSingles(inkala)', false);
+for (const difficulty of ['easy', 'medium']) {
+  for (let i = 0; i < 5; i++) {
+    run(`game = SudokuGame.newGame('${difficulty}')`);
+    check('solvesWithSingles(game.values)');
+    check('(s => s !== null && game.solution[s.index] === s.digit)(findSingle(game.values))');
+  }
+}
+run('game = SudokuGame.newGame("easy"); game.selectedIndex = null; game.hint()');
+check('["hidden", "naked"].includes(game.lastHint.technique)');
+check('game.values[game.lastHint.index] === game.solution[game.lastHint.index]');
+check('/\\d/.test(hintText(game.lastHint, I18N.pt)) && !hintText(game.lastHint, I18N.en).includes("{")');
+run('const empty = game.values.findIndex(v => v === 0); game.selectCell(empty); game.enterDigit(game.solution[empty] % 9 + 1)');
+check('game.lastHint', null);
+run('game.selectedIndex = null; game.hint()');
+check('game.lastHint.technique', 'wrong');
+check('game.lastHint.index', run('empty'));
+check('game.values[empty] === game.solution[empty]');
+run('game.undo()');
+check('game.lastHint', null);
+check('hintText({ index: 10, digit: 4, technique: "hidden", unit: { type: "row", index: 1 } }, I18N.en)', 'In row 2, 4 only fits in column 2.');
+check('unitIndices("box", 4).join()', '30,31,32,39,40,41,48,49,50');
+// Sound preference persists and defaults to on.
+check('isSoundOn()');
+run('setSoundOn(false)');
+check('isSoundOn()', false);
+run('setSoundOn(true)');
 
 console.log(`game.test.js: ${checks} checks passed`);

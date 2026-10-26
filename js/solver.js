@@ -104,3 +104,74 @@ function findConflictIndices(values) {
   }
   return conflicts;
 }
+
+/* ---------------------------------------------------------------------
+   Human techniques: singles. Used to explain hints and to keep Easy/Medium
+   puzzles solvable by pure deduction, without trial and error.
+   --------------------------------------------------------------------- */
+
+function unitIndices(type, n) {
+  if (type === 'row') return Array.from({ length: 9 }, (_, i) => n * 9 + i);
+  if (type === 'col') return Array.from({ length: 9 }, (_, i) => i * 9 + n);
+  const r0 = Math.floor(n / 3) * 3, c0 = (n % 3) * 3;
+  return Array.from({ length: 9 }, (_, i) => (r0 + Math.floor(i / 3)) * 9 + c0 + (i % 3));
+}
+
+/* Box first: a digit with only one home in its 3x3 box is the easiest deduction to spot. */
+const UNIT_ORDER = ['box', 'row', 'col'];
+
+function candidateMasks(grid) {
+  const rows = new Array(9).fill(0), cols = new Array(9).fill(0), boxes = new Array(9).fill(0);
+  for (let idx = 0; idx < 81; idx++) {
+    if (!grid[idx]) continue;
+    const bit = 1 << grid[idx], r = Math.floor(idx / 9), c = idx % 9;
+    rows[r] |= bit; cols[c] |= bit; boxes[Math.floor(r / 3) * 3 + Math.floor(c / 3)] |= bit;
+  }
+  return grid.map((v, idx) => {
+    if (v) return 0;
+    const r = Math.floor(idx / 9), c = idx % 9;
+    return ~(rows[r] | cols[c] | boxes[Math.floor(r / 3) * 3 + Math.floor(c / 3)]) & 0x3fe;
+  });
+}
+
+/* Finds one single in a conflict-free grid: a digit that has only one possible cell in a box,
+   row or column (hidden single), or a cell with only one possible digit (naked single).
+   With `onlyIndex` the search is restricted to deductions that fill that cell.
+   Returns { index, digit, technique: 'hidden' | 'naked', unit: { type, index } | null } or null. */
+function findSingle(grid, onlyIndex = null) {
+  const masks = candidateMasks(grid);
+  for (const type of UNIT_ORDER) {
+    for (let n = 0; n < 9; n++) {
+      const cells = unitIndices(type, n);
+      if (onlyIndex !== null && !cells.includes(onlyIndex)) continue;
+      for (let digit = 1; digit <= 9; digit++) {
+        const bit = 1 << digit;
+        const homes = cells.filter(i => masks[i] & bit);
+        if (homes.length === 1 && (onlyIndex === null || homes[0] === onlyIndex)) {
+          return { index: homes[0], digit, technique: 'hidden', unit: { type, index: n } };
+        }
+      }
+    }
+  }
+  for (let idx = 0; idx < 81; idx++) {
+    if (onlyIndex !== null && idx !== onlyIndex) continue;
+    if (masks[idx] && bitCount(masks[idx]) === 1) {
+      return { index: idx, digit: Math.log2(masks[idx]), technique: 'naked', unit: null };
+    }
+  }
+  return null;
+}
+
+/* True when repeatedly placing singles fills the whole grid. Every placement is forced, so a
+   grid that passes also has exactly one solution. */
+function solvesWithSingles(grid) {
+  const work = grid.slice();
+  for (;;) {
+    if (!work.includes(0)) return findConflictIndices(work).size === 0;
+    const masks = candidateMasks(work);
+    if (masks.some((m, i) => work[i] === 0 && m === 0)) return false;
+    const step = findSingle(work);
+    if (!step) return false;
+    work[step.index] = step.digit;
+  }
+}

@@ -1,24 +1,11 @@
-/* Rendering, screen navigation, animation and persistence glue. */
-
-const SAVE_KEY = 'sudokuweb-save';
-const DIFFICULTY_KEY = 'sudokuweb-difficulty';
-const LEADERBOARD_KEY = 'sudokuweb-leaderboard';
+/* Rendering, screen navigation, input handling and wiring. Persistence lives in storage.js,
+   splash/modals/win screens in overlays.js. */
 
 let currentLang = getStoredLang();
 let game = null;
 let timerInterval = null;
 let cellEls = [];
 
-function getStoredDifficulty() {
-  try {
-    const stored = localStorage.getItem(DIFFICULTY_KEY);
-    if (stored && Object.prototype.hasOwnProperty.call(DIFFICULTIES, stored)) return stored;
-  } catch (e) { /* localStorage unavailable */ }
-  return 'easy';
-}
-function setStoredDifficulty(difficulty) {
-  try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (e) { /* ignore */ }
-}
 let selectedDifficulty = getStoredDifficulty();
 let lastMovesShown = null;
 
@@ -98,26 +85,6 @@ function goToLevels() {
 }
 
 /* ---------------------------------------------------------------------
-   Splash sequence
-   --------------------------------------------------------------------- */
-
-function initSplash() {
-  let left = false;
-  const leave = () => {
-    if (left) return;
-    left = true;
-    el('splash-screen').classList.add('leaving');
-    setTimeout(() => { goToMenu(); }, 550);
-  };
-  el('splash-skip').addEventListener('click', leave);
-  el('splash-screen').addEventListener('click', (e) => {
-    if (e.target.closest('a')) return;
-    leave();
-  });
-  setTimeout(leave, 2600);
-}
-
-/* ---------------------------------------------------------------------
    Board rendering
    --------------------------------------------------------------------- */
 
@@ -164,6 +131,8 @@ function refreshBoard() {
   const selectedIndex = game.selectedIndex;
   const selectedCell = (selectedIndex !== null && selectedIndex !== undefined) ? cells[selectedIndex] : null;
   const dict = I18N[currentLang];
+  const hint = game.lastHint;
+  const hintUnit = new Set(hint?.unit ? unitIndices(hint.unit.type, hint.unit.index) : []);
 
   cells.forEach((cellData, idx) => {
     const div = cellEls[idx];
@@ -184,9 +153,21 @@ function refreshBoard() {
     }
     div.classList.toggle('peer', isPeer);
     div.classList.toggle('same-number', isSameNumber);
+    div.classList.toggle('hint-unit', hintUnit.has(idx));
   });
 
   refreshNumberPad(cells);
+  const explain = el('hint-explain');
+  explain.textContent = hint ? hintText(hint, dict) : '';
+  explain.classList.toggle('hidden', !hint);
+}
+
+function hintText(hint, dict) {
+  const key = hint.technique === 'hidden'
+    ? { box: 'hintHiddenBox', row: 'hintHiddenRow', col: 'hintHiddenCol' }[hint.unit.type]
+    : { naked: 'hintNaked', wrong: 'hintWrong', reveal: 'hintReveal' }[hint.technique];
+  const values = { r: Math.floor(hint.index / 9) + 1, c: (hint.index % 9) + 1, d: hint.digit };
+  return dict[key].replace(/\{(\w)\}/g, (_, k) => values[k]);
 }
 
 function pulse(index, className) {
@@ -280,13 +261,19 @@ function handleResult(result) {
     case 'digitEntered': {
       refreshBoard();
       pulse(result.index, 'pop-in');
-      if (game.cells()[result.index].isConflict) pulse(result.index, 'shake');
+      if (game.cells()[result.index].isConflict) { pulse(result.index, 'shake'); Sound.conflict(); } else Sound.digit();
       updateStats();
       saveGame();
       break;
     }
 
     case 'noteToggled':
+      Sound.digit();
+      refreshBoard();
+      updateStats();
+      saveGame();
+      break;
+
     case 'cellCleared':
     case 'undone':
       refreshBoard();
@@ -295,6 +282,7 @@ function handleResult(result) {
       break;
 
     case 'hintRevealed':
+      Sound.hint();
       refreshBoard();
       pulse(result.index, 'pop-in');
       updateStats();
@@ -306,6 +294,7 @@ function handleResult(result) {
       break;
 
     case 'won':
+      Sound.win();
       refreshBoard();
       updateStats();
       onWin();
@@ -342,6 +331,12 @@ function handleNotesToggle() {
   el('number-pad').classList.toggle('notes-mode', game.notesMode);
   refreshBoard();
   saveGame();
+}
+
+function applySoundUI() {
+  const on = isSoundOn();
+  el('btn-sound').setAttribute('aria-pressed', String(on));
+  el('btn-sound').classList.toggle('muted', !on);
 }
 
 function handleKeydown(e) {
@@ -424,227 +419,6 @@ function refreshHintBadge() {
 }
 
 /* ---------------------------------------------------------------------
-   Win / leaderboard
-   --------------------------------------------------------------------- */
-
-function loadLeaderboard() {
-  try {
-    const raw = localStorage.getItem(LEADERBOARD_KEY);
-    const data = raw ? JSON.parse(raw) : null;
-    if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
-    const valid = {};
-    for (const key of Object.keys(DIFFICULTIES)) {
-      const entry = data[key];
-      if (!entry || typeof entry !== 'object') continue;
-      valid[key] = {
-        bestTime: Number.isFinite(entry.bestTime) && entry.bestTime >= 0 ? entry.bestTime : null,
-        bestHints: Number.isInteger(entry.bestHints) && entry.bestHints >= 0 ? entry.bestHints : null,
-      };
-    }
-    return valid;
-  } catch (e) { return {}; }
-}
-function saveLeaderboard(data) {
-  try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
-}
-function getLeaderboardEntry(difficulty) {
-  const entry = loadLeaderboard()[difficulty] || {};
-  return { bestTime: entry.bestTime ?? null, bestHints: entry.bestHints ?? null };
-}
-function recordCompletion(difficulty, elapsedSeconds, hintsUsed) {
-  const data = loadLeaderboard();
-  const entry = data[difficulty] || { bestTime: null, bestHints: null };
-  let isNewBestTime = false;
-  let isNewBestHints = false;
-  if (entry.bestTime === null || elapsedSeconds < entry.bestTime) { entry.bestTime = elapsedSeconds; isNewBestTime = true; }
-  if (entry.bestHints === null || hintsUsed < entry.bestHints) { entry.bestHints = hintsUsed; isNewBestHints = true; }
-  data[difficulty] = entry;
-  saveLeaderboard(data);
-  return { isNewBestTime, isNewBestHints };
-}
-
-let lastChallengeLevel = null;
-
-function animateWinStars(count) {
-  const wrap = el('win-stars');
-  wrap.classList.remove('hidden');
-  wrap.querySelectorAll('.win-star').forEach((star, i) => {
-    const earned = i < count;
-    star.classList.remove('earned', 'pop');
-    star.classList.toggle('earned', earned);
-    if (earned) {
-      setTimeout(() => star.classList.add('pop'), 220 + i * 260);
-    }
-  });
-}
-
-function onWinChallenge() {
-  const level = game.challengeLevel;
-  lastChallengeLevel = level;
-  const elapsedSeconds = game.elapsedSeconds;
-  const stars = starsFor(game.wrongMoves, game.hintsUsed);
-  const outcome = recordChallengeWin(level, elapsedSeconds, stars);
-  const dict = I18N[currentLang];
-
-  el('win-title').textContent = `${dict.level} ${level} ${dict.levelCompleteSuffix}`;
-  el('win-subtitle').textContent = dict.winSubtitle;
-  el('win-time').textContent = formatTime(elapsedSeconds);
-  el('win-hints').textContent = game.hintsUsed;
-
-  el('win-leaderboard').classList.add('hidden');
-  el('win-record-time').classList.toggle('hidden', !outcome.isNewBestTime);
-  el('win-record-hints').classList.add('hidden');
-  el('win-unlocked').classList.toggle('hidden', !outcome.unlockedNext);
-  el('win-records').classList.toggle('hidden', !outcome.isNewBestTime && !outcome.unlockedNext);
-
-  el('btn-win-next').classList.remove('hidden');
-  el('btn-win-levels').classList.remove('hidden');
-  el('btn-win-again').classList.add('hidden');
-  el('btn-win-menu').classList.add('hidden');
-
-  openModal('modal-win');
-  animateWinStars(stars);
-  launchConfetti();
-}
-
-function onWinClassic() {
-  const elapsedSeconds = game.elapsedSeconds;
-  const hintsUsed = game.hintsUsed;
-  const outcome = recordCompletion(game.difficulty, elapsedSeconds, hintsUsed);
-  const lb = getLeaderboardEntry(game.difficulty);
-
-  el('win-title').textContent = I18N[currentLang].winTitle;
-  el('win-subtitle').textContent = I18N[currentLang].winSubtitle;
-  el('win-stars').classList.add('hidden');
-  el('win-time').textContent = formatTime(elapsedSeconds);
-  el('win-hints').textContent = hintsUsed;
-  el('win-leaderboard').classList.remove('hidden');
-  el('lb-best-time').textContent = lb.bestTime !== null ? formatTime(lb.bestTime) : '–';
-  el('lb-best-hints').textContent = lb.bestHints !== null ? lb.bestHints : '–';
-  el('win-record-time').classList.toggle('hidden', !outcome.isNewBestTime);
-  el('win-record-hints').classList.toggle('hidden', !outcome.isNewBestHints);
-  el('win-unlocked').classList.add('hidden');
-  el('win-records').classList.toggle('hidden', !outcome.isNewBestTime && !outcome.isNewBestHints);
-
-  el('btn-win-next').classList.add('hidden');
-  el('btn-win-levels').classList.add('hidden');
-  el('btn-win-again').classList.remove('hidden');
-  el('btn-win-menu').classList.remove('hidden');
-
-  openModal('modal-win');
-  launchConfetti();
-}
-
-function onWin() {
-  stopTimer();
-  clearSavedGame();
-  if (game.isChallenge) onWinChallenge(); else onWinClassic();
-}
-
-/* ---------------------------------------------------------------------
-   Modals
-   --------------------------------------------------------------------- */
-
-let modalPreviousFocus = null;
-function openModal(id) {
-  stopTimer();
-  modalPreviousFocus = document.activeElement;
-  document.querySelectorAll('.screen').forEach(s => { s.inert = true; });
-  el('modal-overlay').classList.remove('hidden');
-  document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
-  el(id).classList.remove('hidden');
-  el(id).querySelector('button:not(.hidden)')?.focus();
-}
-function closeAllModals() {
-  document.querySelectorAll('.screen').forEach(s => { s.inert = false; });
-  modalPreviousFocus?.focus();
-  if (game && !game.isWon && !el('game-screen').classList.contains('hidden')) startTimer();
-  el('modal-overlay').classList.add('hidden');
-  document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
-}
-
-/* ---------------------------------------------------------------------
-   Confetti (win modal)
-   --------------------------------------------------------------------- */
-
-function launchConfetti() {
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  const canvas = el('confetti-canvas');
-  const modal = canvas.closest('.modal');
-  canvas.width = modal.clientWidth;
-  canvas.height = modal.clientHeight;
-  const ctx = canvas.getContext('2d');
-  const colors = ['#f99c00', '#fcbb00', '#ffd236', '#dd7400', '#e2e8f0'];
-  const particles = Array.from({ length: 70 }, () => ({
-    x: Math.random() * canvas.width,
-    y: -20 - Math.random() * canvas.height * 0.5,
-    r: 3 + Math.random() * 4,
-    c: colors[Math.floor(Math.random() * colors.length)],
-    vy: 2 + Math.random() * 3,
-    vx: -1.5 + Math.random() * 3,
-    rot: Math.random() * Math.PI,
-    vr: -0.2 + Math.random() * 0.4,
-  }));
-  let frames = 0;
-  function tick() {
-    frames++;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particles.forEach((p) => {
-      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.fillStyle = p.c;
-      ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
-      ctx.restore();
-    });
-    if (frames < 220) requestAnimationFrame(tick);
-    else ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-  tick();
-}
-
-/* ---------------------------------------------------------------------
-   Toast
-   --------------------------------------------------------------------- */
-
-let toastTimeout = null;
-function showToast(msg) {
-  const t = el('toast');
-  t.textContent = msg;
-  t.classList.remove('hidden');
-  clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => t.classList.add('hidden'), 2200);
-}
-
-/* ---------------------------------------------------------------------
-   Persistence
-   --------------------------------------------------------------------- */
-
-function saveGame() {
-  if (!game || game.isWon) return;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(game.toSnapshot())); } catch (e) { /* storage unavailable — skip autosave */ }
-}
-function hasSavedGame() {
-  return loadGame() !== null;
-}
-function clearSavedGame() {
-  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
-}
-function loadGame() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    const snap = raw ? JSON.parse(raw) : null;
-    if (SudokuGame.isValidSnapshot(snap) && snap.values.some((v, i) => v !== snap.solution[i])) return snap;
-    clearSavedGame();
-    return null;
-  } catch (e) {
-    clearSavedGame();
-    return null;
-  }
-}
-
-/* ---------------------------------------------------------------------
    Wiring
    --------------------------------------------------------------------- */
 
@@ -653,6 +427,7 @@ function init() {
   applyDifficultyUI();
   initSplash();
   renderNumberPad();
+  applySoundUI();
 
   el('lang-toggle').addEventListener('click', () => setLang(currentLang === 'pt' ? 'en' : 'pt'));
 
@@ -679,6 +454,7 @@ function init() {
   el('btn-hint').addEventListener('click', handleHint);
   el('btn-erase').addEventListener('click', handleErase);
   el('btn-restart').addEventListener('click', requestRestart);
+  el('btn-sound').addEventListener('click', () => { setSoundOn(!isSoundOn()); applySoundUI(); });
 
   el('btn-confirm-yes').addEventListener('click', () => {
     const level = game.challengeLevel;

@@ -17,6 +17,7 @@ class SudokuGame {
     this.challengeLevel = opts.challengeLevel ?? null; // null = classic mode
     this.elapsedMilliseconds = (opts.elapsedSeconds ?? 0) * 1000;
     this.runningSince = performance.now();
+    this.lastHint = null; // explanation of the latest hint, until the board changes again
     this.undoStack = (opts.undoStack ?? []).map(entry => ({
       index: entry.index,
       prevValue: entry.prevValue,
@@ -159,6 +160,7 @@ class SudokuGame {
 
     if (this.notesMode) {
       if (this.values[index] !== 0) return { type: 'ignored' };
+      this.lastHint = null;
       const had = this.notes[index].has(digit);
       this.pushUndo(index);
       if (had) this.notes[index].delete(digit); else this.notes[index].add(digit);
@@ -167,6 +169,7 @@ class SudokuGame {
     }
 
     if (this.values[index] === digit) return { type: 'ignored' };
+    this.lastHint = null;
     this.pushUndo(index, digit);
     this.values[index] = digit;
     this.notes[index].clear();
@@ -182,6 +185,7 @@ class SudokuGame {
     if (index === null || index === undefined) return { type: 'ignored' };
     if (this.givenMask[index]) return { type: 'ignored' };
     if (this.values[index] === 0 && this.notes[index].size === 0) return { type: 'ignored' };
+    this.lastHint = null;
     this.pushUndo(index);
     this.values[index] = 0;
     this.notes[index].clear();
@@ -193,6 +197,7 @@ class SudokuGame {
     if (this.isWon) return { type: 'ignored' };
     const entry = this.undoStack.pop();
     if (!entry) return { type: 'ignored' };
+    this.lastHint = null;
     this.values[entry.index] = entry.prevValue ?? 0;
     this.notes[entry.index] = new Set(entry.prevNotes);
     this.selectedIndex = entry.index;
@@ -204,31 +209,50 @@ class SudokuGame {
     this.notesMode = !this.notesMode;
   }
 
+  /* Fixes a wrong entry first; otherwise fills a cell through the simplest deduction available
+     (a single), explained in `lastHint`, and only reveals blindly when no single applies. */
   hint() {
     if (this.isWon) return { type: 'ignored' };
     if (this.hintsUsed >= this.maxHints) return { type: 'hintExhausted' };
 
+    const editable = i => !this.givenMask[i] && this.values[i] !== this.solution[i];
+    // Wrong entries are left out so every deduction follows from correct digits only.
+    const board = this.values.map((v, i) => (v === this.solution[i] ? v : 0));
     const selected = this.selectedIndex;
     let target;
-    if (selected !== null && selected !== undefined && !this.givenMask[selected] && this.values[selected] !== this.solution[selected]) {
+    let step = null;
+    if (selected !== null && selected !== undefined && editable(selected)) {
       target = selected;
+      if (this.values[selected] === 0) step = findSingle(board, selected);
     } else {
-      const candidates = [];
-      for (let i = 0; i < 81; i++) {
-        if (!this.givenMask[i] && this.values[i] !== this.solution[i]) candidates.push(i);
+      const wrong = [];
+      for (let i = 0; i < 81; i++) if (editable(i) && this.values[i] !== 0) wrong.push(i);
+      if (wrong.length) {
+        target = wrong[Math.floor(Math.random() * wrong.length)];
+      } else {
+        step = findSingle(board);
+        if (step) {
+          target = step.index;
+        } else {
+          const candidates = [];
+          for (let i = 0; i < 81; i++) if (editable(i)) candidates.push(i);
+          if (candidates.length === 0) return { type: 'hintExhausted' };
+          target = candidates[Math.floor(Math.random() * candidates.length)];
+        }
       }
-      if (candidates.length === 0) return { type: 'hintExhausted' };
-      target = candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    this.pushUndo(target, this.solution[target]);
-    this.values[target] = this.solution[target];
+    const technique = this.values[target] !== 0 ? 'wrong' : (step ? step.technique : 'reveal');
+    const digit = this.solution[target];
+    this.pushUndo(target, digit);
+    this.values[target] = digit;
     this.notes[target].clear();
     this.hintsUsed++;
     this.moves++;
     this.selectedIndex = target;
+    this.lastHint = { index: target, digit, technique, unit: step ? step.unit : null };
     if (this.isWon) this.pause();
-    return this.isWon ? { type: 'won' } : { type: 'hintRevealed', index: target, digit: this.solution[target] };
+    return this.isWon ? { type: 'won' } : { type: 'hintRevealed', index: target, digit };
   }
 
   pushUndo(index, digit = null) {
