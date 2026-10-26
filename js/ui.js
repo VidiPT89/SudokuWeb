@@ -12,7 +12,7 @@ let cellEls = [];
 function getStoredDifficulty() {
   try {
     const stored = localStorage.getItem(DIFFICULTY_KEY);
-    if (stored && DIFFICULTIES[stored]) return stored;
+    if (stored && Object.prototype.hasOwnProperty.call(DIFFICULTIES, stored)) return stored;
   } catch (e) { /* localStorage unavailable */ }
   return 'easy';
 }
@@ -80,6 +80,7 @@ function setLang(lang) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
   el(id).classList.remove('hidden');
+  el(id).querySelector('button:not(.hidden)')?.focus();
 }
 
 function goToMenu() {
@@ -90,6 +91,7 @@ function goToMenu() {
 
 function goToLevels() {
   stopTimer();
+  resetLevelWindow(loadChallengeProgress());
   showScreen('levels-screen');
   renderLevels(startChallenge);
 }
@@ -125,7 +127,8 @@ function renderBoard() {
   for (let idx = 0; idx < 81; idx++) {
     const row = Math.floor(idx / 9);
     const col = idx % 9;
-    const div = document.createElement('div');
+    const div = document.createElement('button');
+    div.type = 'button';
     div.className = 'cell';
     div.style.setProperty('--i', String(row + col));
     div.classList.add('enter');
@@ -170,6 +173,10 @@ function refreshBoard() {
     div.classList.toggle('given', cellData.isGiven);
     div.classList.toggle('conflict', cellData.isConflict);
     div.classList.toggle('selected', idx === selectedIndex);
+    div.tabIndex = idx === (selectedIndex ?? 0) ? 0 : -1;
+    const dict = I18N[currentLang];
+    div.setAttribute('aria-label', `${dict.row} ${cellData.row + 1}, ${dict.column} ${cellData.col + 1}, ${cellData.value ?? dict.emptyCell}${cellData.isGiven ? ', ' + dict.fixedCell : ''}${cellData.isConflict ? ', ' + dict.conflictCell : ''}${cellData.notes.size ? ', ' + dict.notes + ': ' + [...cellData.notes].sort().join(', ') : ''}`);
+    div.setAttribute('aria-pressed', String(idx === selectedIndex));
 
     let isPeer = false;
     let isSameNumber = false;
@@ -215,7 +222,7 @@ function refreshNumberPad(cells) {
   cells.forEach((c) => { if (c.value) counts[c.value]++; });
   document.querySelectorAll('.num-btn').forEach((btn) => {
     const d = Number(btn.dataset.digit);
-    btn.disabled = counts[d] >= 9;
+    btn.disabled = !game.notesMode && counts[d] >= 9;
   });
 }
 
@@ -333,16 +340,20 @@ function handleNotesToggle() {
   if (!game) return;
   game.toggleNotesMode();
   el('btn-notes').classList.toggle('active', game.notesMode);
+  refreshBoard();
   saveGame();
 }
 
 function handleKeydown(e) {
   if (!game || el('game-screen').classList.contains('hidden')) return;
   if (!el('modal-overlay').classList.contains('hidden')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target?.matches('input, textarea, select, [contenteditable]')) return;
 
   if (e.key >= '1' && e.key <= '9') {
+    e.preventDefault();
     handleDigitPad(Number(e.key));
   } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+    e.preventDefault();
     handleErase();
   } else if (e.key.startsWith('Arrow')) {
     e.preventDefault();
@@ -361,6 +372,7 @@ function moveSelection(key) {
   if (key === 'ArrowLeft') col = Math.max(0, col - 1);
   if (key === 'ArrowRight') col = Math.min(8, col + 1);
   handleResult(game.selectCell(row * 9 + col));
+  cellEls[row * 9 + col]?.focus({ preventScroll: true });
 }
 
 function requestRestart() {
@@ -369,11 +381,13 @@ function requestRestart() {
 
 function startTimer() {
   stopTimer();
+  if (document.hidden) return;
+  game?.resume();
   timerInterval = setInterval(() => {
     el('stat-time').textContent = formatTime(game.elapsedSeconds);
   }, 500);
 }
-function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
+function stopTimer() { game?.pause(); if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
 
 function updateStats() {
   el('stat-time').textContent = formatTime(game.elapsedSeconds);
@@ -388,6 +402,7 @@ function updateStats() {
   }
   el('stat-moves').textContent = moves;
   el('stat-hints').textContent = game.hintsRemaining;
+  refreshHintBadge();
 }
 
 function refreshHintBadge() {
@@ -404,7 +419,18 @@ function refreshHintBadge() {
 function loadLeaderboard() {
   try {
     const raw = localStorage.getItem(LEADERBOARD_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const data = raw ? JSON.parse(raw) : null;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+    const valid = {};
+    for (const key of Object.keys(DIFFICULTIES)) {
+      const entry = data[key];
+      if (!entry || typeof entry !== 'object') continue;
+      valid[key] = {
+        bestTime: Number.isFinite(entry.bestTime) && entry.bestTime >= 0 ? entry.bestTime : null,
+        bestHints: Number.isInteger(entry.bestHints) && entry.bestHints >= 0 ? entry.bestHints : null,
+      };
+    }
+    return valid;
   } catch (e) { return {}; }
 }
 function saveLeaderboard(data) {
@@ -508,12 +534,20 @@ function onWin() {
    Modals
    --------------------------------------------------------------------- */
 
+let modalPreviousFocus = null;
 function openModal(id) {
+  stopTimer();
+  modalPreviousFocus = document.activeElement;
+  document.querySelectorAll('.screen').forEach(s => { s.inert = true; });
   el('modal-overlay').classList.remove('hidden');
   document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
   el(id).classList.remove('hidden');
+  el(id).querySelector('button:not(.hidden)')?.focus();
 }
 function closeAllModals() {
+  document.querySelectorAll('.screen').forEach(s => { s.inert = false; });
+  modalPreviousFocus?.focus();
+  if (game && !game.isWon && !el('game-screen').classList.contains('hidden')) startTimer();
   el('modal-overlay').classList.add('hidden');
   document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
 }
@@ -576,11 +610,11 @@ function showToast(msg) {
    --------------------------------------------------------------------- */
 
 function saveGame() {
-  if (!game) return;
+  if (!game || game.isWon) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(game.toSnapshot())); } catch (e) { /* storage unavailable — skip autosave */ }
 }
 function hasSavedGame() {
-  try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+  return loadGame() !== null;
 }
 function clearSavedGame() {
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
@@ -588,8 +622,12 @@ function clearSavedGame() {
 function loadGame() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const snap = raw ? JSON.parse(raw) : null;
+    if (SudokuGame.isValidSnapshot(snap) && snap.values.some((v, i) => v !== snap.solution[i])) return snap;
+    clearSavedGame();
+    return null;
   } catch (e) {
+    clearSavedGame();
     return null;
   }
 }
@@ -644,6 +682,20 @@ function init() {
   el('btn-win-levels').addEventListener('click', () => { closeAllModals(); goToLevels(); });
 
   document.addEventListener('keydown', handleKeydown);
+  document.addEventListener('keydown', e => {
+    if (el('modal-overlay').classList.contains('hidden')) return;
+    if (e.key === 'Escape' && !el('modal-confirm').classList.contains('hidden')) closeAllModals();
+    if (e.key !== 'Tab') return;
+    const buttons = [...el('modal-overlay').querySelectorAll('.modal:not(.hidden) button:not(.hidden):not(:disabled)')];
+    const index = buttons.indexOf(document.activeElement);
+    e.preventDefault();
+    buttons[(index + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopTimer(); saveGame(); }
+    else if (game && !game.isWon && !el('game-screen').classList.contains('hidden') && el('modal-overlay').classList.contains('hidden')) startTimer();
+  });
+  window.addEventListener('pagehide', () => { stopTimer(); saveGame(); });
 }
 
 document.addEventListener('DOMContentLoaded', init);

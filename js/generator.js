@@ -3,9 +3,9 @@
    exactly one solution (checked via countSolutions capped at 2). */
 
 const DIFFICULTIES = {
-  easy: { minClues: 40, maxClues: 45, maxHints: 3 },
-  medium: { minClues: 32, maxClues: 36, maxHints: 4 },
-  hard: { minClues: 26, maxClues: 30, maxHints: 5 },
+  easy: { minClues: 40, maxHints: 3 },
+  medium: { minClues: 32, maxHints: 4 },
+  hard: { minClues: 26, maxHints: 5 },
 };
 
 function shuffle(arr) {
@@ -33,7 +33,7 @@ function fillGrid(grid, index) {
   return false;
 }
 
-/* Digs a full solution down to (at most) targetClues cells while preserving a unique solution.
+/* Digs a full solution towards targetClues cells (uniqueness may require more) while preserving a unique solution.
    Returns { given: Array(81), solution: Array(81) }. */
 function digPuzzle(targetClues) {
   const solution = new Array(81).fill(0);

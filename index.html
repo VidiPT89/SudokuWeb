@@ -7,7 +7,7 @@
 <meta name="description" content="Sudoku moderno e animado, puzzles com solução única, notas, dicas e um leaderboard local, bilingue PT/EN.">
 <meta name="theme-color" content="#0a0a0f">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%230a0a0f%22/><rect x=%2222%22 y=%2222%22 width=%2256%22 height=%2256%22 rx=%228%22 fill=%22none%22 stroke=%22%23f99c00%22 stroke-width=%226%22/><path d=%22M22 41h56M22 59h56M41 22v56M59 22v56%22 stroke=%22%23f99c00%22 stroke-width=%223%22/></svg>">
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 <div id="app">
@@ -168,7 +168,7 @@
       </div>
 
       <div class="game-actions">
-        <button id="btn-restart" class="icon-btn" data-tip-i18n="restart">
+        <button id="btn-restart" class="icon-btn" data-tip-i18n="restart" data-i18n-label="restart">
           <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v6h6"/></svg>
         </button>
       </div>
@@ -206,7 +206,7 @@
   <!-- ============ MODALS ============ -->
   <div id="modal-overlay" class="modal-overlay hidden">
 
-    <div id="modal-win" class="modal modal-win hidden">
+    <div id="modal-win" role="dialog" aria-modal="true" aria-labelledby="win-title" class="modal modal-win hidden">
       <canvas id="confetti-canvas"></canvas>
       <div class="modal-body">
         <h2 id="win-title" data-i18n="winTitle"></h2>
@@ -238,9 +238,9 @@
       </div>
     </div>
 
-    <div id="modal-confirm" class="modal modal-confirm hidden">
+    <div id="modal-confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title" class="modal modal-confirm hidden">
       <div class="modal-body">
-        <h2 data-i18n="confirmRestartTitle"></h2>
+        <h2 id="confirm-title" data-i18n="confirmRestartTitle"></h2>
         <p data-i18n="confirmRestartBody"></p>
         <div class="modal-actions">
           <button id="btn-confirm-yes" class="btn btn-primary" data-i18n="confirmYes"></button>
@@ -251,14 +251,14 @@
 
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" role="status" aria-live="polite" class="toast hidden"></div>
 </div>
 
-<script src="js/i18n.js?v=2"></script>
-<script src="js/solver.js?v=2"></script>
-<script src="js/challenge.js?v=2"></script>
-<script src="js/generator.js?v=2"></script>
-<script src="js/engine.js?v=2"></script>
-<script src="js/ui.js?v=2"></script>
+<script src="js/i18n.js?v=3"></script>
+<script src="js/solver.js?v=3"></script>
+<script src="js/challenge.js?v=3"></script>
+<script src="js/generator.js?v=3"></script>
+<script src="js/engine.js?v=3"></script>
+<script src="js/ui.js?v=3"></script>
 </body>
 </html>
