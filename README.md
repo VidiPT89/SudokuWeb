@@ -131,7 +131,6 @@ Developed by **David Arsénio Martins** — *"Vidi"*
 - The ↻ button starts a new puzzle at the same difficulty (or the same challenge level) after confirmation. Time pauses outside active play, during that confirmation and after victory.
 - Invalid saved games are rejected safely; completed games are not offered as resumable games.
 - Undo history is saved for up to 200 moves and restored with the game. Older saves without history remain compatible.
-- The Android implementation was retired at the owner's request.
 
 Run all regression checks: `node tests/challenge.test.js && node tests/game.test.js`. No dependencies or build step are needed.
 
